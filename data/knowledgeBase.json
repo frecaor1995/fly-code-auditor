@@ -1,0 +1,65 @@
+[
+  {
+    "id": "kb-1",
+    "category": "Checklists de inspeccion",
+    "title": "Checklist general antes de solicitar inspeccion (Houston / TDLR)",
+    "body": "Verificar: panel etiquetado y accesible, grounding y bonding completos, breakers correctamente dimensionados, GFCI/AFCI donde aplica, conduit fill y box fill dentro de limites NEC, disconnects visibles y etiquetados, permisos visibles en sitio. Documento interno de referencia rapida; no sustituye el checklist oficial de TDLR/Houston Permitting Center.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-2",
+    "category": "Procedimientos de seguridad",
+    "title": "Procedimiento de bloqueo/etiquetado (LOTO) antes de trabajar en paneles",
+    "body": "Todo trabajo en paneles, feeders o servicio principal requiere de-energizar, verificar ausencia de voltaje con multimetro calibrado, y usar EPP segun NFPA 70E. Escalar al Master Electrician antes de energizar nuevamente.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-3",
+    "category": "Reglas locales de Houston",
+    "title": "Notas internas sobre permisos y AHJ en Houston",
+    "body": "Houston Permitting Center exige permiso para la mayoria de trabajos de panel upgrade, subpaneles y EV chargers. Verificar siempre el requisito vigente con Houston Permitting Center antes de cotizar o ejecutar.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-4",
+    "category": "Procedimientos TDLR",
+    "title": "Recordatorio de licencias TDLR",
+    "body": "Todo trabajo debe ser realizado o supervisado por personal con licencia TDLR vigente. Verificar el numero de licencia del Master Electrician antes de cada proyecto nuevo.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-5",
+    "category": "Guias internas de EV chargers",
+    "title": "Guia rapida EV charger residencial",
+    "body": "Confirmar amperaje del cargador, tipo de circuito dedicado, breaker requerido, distancia al panel, metodo de instalacion (conduit vs cable), y si el panel tiene capacidad disponible segun calculo de carga. Siempre verificar articulo NEC exacto con el Master Electrician.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-6",
+    "category": "Procedimientos de panel upgrade",
+    "title": "Checklist previo a upgrade de panel (ej. 150A a 200A)",
+    "body": "Verificar calculo de carga actualizado, capacidad del feeder existente, grounding electrode system, bonding de tuberia de agua/gas, espacio y clearance frente al panel, y coordinacion con la utility para el corte de servicio.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-7",
+    "category": "Simbologia electrica basica",
+    "title": "Simbolos comunes en planos residenciales/comerciales",
+    "body": "Receptaculo estandar, receptaculo GFCI, receptaculo con weatherproof cover, luminaria de techo, luminaria de pared, interruptor sencillo/3 vias, panel electrico, home run, disconnect, transformador. Referencia solo para orientacion preliminar.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-8",
+    "category": "Plantillas de lectura de planos",
+    "title": "Plantilla de resumen de plano electrico",
+    "body": "Hoja revisada, paneles identificados, circuitos principales, equipos especiales (EV charger, transformer, subpanel), notas generales relevantes, informacion faltante para cotizar. Usar como estructura base al resumir cualquier plano.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  },
+  {
+    "id": "kb-9",
+    "category": "Procedimientos para revision de planos antes de cotizar",
+    "title": "Preguntas minimas antes de cotizar con base en un plano",
+    "body": "Ciudad y jurisdiccion (AHJ), tipo de servicio y amperaje, tipo de ocupacion, hoja(s) del set de planos disponibles, escala del dibujo, si el panel schedule esta completo, y si existen adendums o revisiones posteriores al set original.",
+    "updatedAt": "2026-05-01T00:00:00.000Z"
+  }
+]

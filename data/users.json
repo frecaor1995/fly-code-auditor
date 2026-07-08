@@ -1,0 +1,42 @@
+[
+  {
+    "id": "u-admin",
+    "name": "Fly Admin",
+    "email": "admin@flyelectric.com",
+    "password": "demo1234",
+    "role": "owner_admin",
+    "preferredLanguage": "bilingual"
+  },
+  {
+    "id": "u-master",
+    "name": "Roberto Flores (Master Electrician)",
+    "email": "master@flyelectric.com",
+    "password": "demo1234",
+    "role": "master_electrician",
+    "preferredLanguage": "bilingual"
+  },
+  {
+    "id": "u-tecnico",
+    "name": "Luis Martinez (Tecnico)",
+    "email": "tecnico@flyelectric.com",
+    "password": "demo1234",
+    "role": "tecnico",
+    "preferredLanguage": "es"
+  },
+  {
+    "id": "u-ayudante",
+    "name": "Junior Perez (Ayudante)",
+    "email": "ayudante@flyelectric.com",
+    "password": "demo1234",
+    "role": "ayudante",
+    "preferredLanguage": "es"
+  },
+  {
+    "id": "u-oficina",
+    "name": "Sandra Gomez (Oficina)",
+    "email": "oficina@flyelectric.com",
+    "password": "demo1234",
+    "role": "oficina",
+    "preferredLanguage": "en"
+  }
+]

@@ -1,0 +1,34 @@
+import Link from "next/link";
+import { listQueries } from "@/lib/db/repos/queries";
+import { RiskBadge } from "@/components/ui/RiskBadge";
+import { formatDateTime } from "@/lib/utils/dates";
+
+export default function ReportesPage() {
+  const queries = listQueries();
+
+  return (
+    <div className="space-y-4">
+      <h1 className="text-xl font-bold text-fly-gold">Reportes</h1>
+      <p className="text-sm text-fly-lightgray/70">
+        Selecciona una consulta para generar su resumen imprimible (puedes guardarlo como PDF desde el dialogo de
+        impresion del navegador).
+      </p>
+      <div className="space-y-2">
+        {queries.length === 0 && <p className="text-sm text-fly-lightgray/60">Aun no hay consultas para reportar.</p>}
+        {queries.map((q) => (
+          <Link
+            key={q.id}
+            href={`/reportes/${q.id}/print`}
+            className="flex items-center justify-between rounded-xl border border-fly-gray bg-fly-charcoal p-4 hover:border-fly-gold transition"
+          >
+            <div>
+              <p className="text-sm font-medium line-clamp-1">{q.question}</p>
+              <p className="text-xs text-fly-lightgray/60">{formatDateTime(q.createdAt)}</p>
+            </div>
+            <RiskBadge risk={q.riskLevel} />
+          </Link>
+        ))}
+      </div>
+    </div>
+  );
+}

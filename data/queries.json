@@ -1,0 +1,69 @@
+[
+  {
+    "id": "9ed5e8b8-c30c-415f-ad10-46c83ec31ef2",
+    "projectId": "p-demo-1",
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "bilingual",
+    "question": "PUEDO INSTALAR UN CARGAFDOR DE CARRO ELECTRICO DE 48A CON UN BREAKER DE 60A",
+    "response": {
+      "shortAnswer": "Un EV charger de 48A es una carga continua: el breaker debe ser minimo 125% de la carga continua (48A x 1.25 = 60A), por lo que un breaker de 60A dedicado es el tamano tipico esperado para ese charger, siempre que el conductor y el circuito esten dimensionados igual para 125% de la carga continua.",
+      "riskLevel": "alto",
+      "codeReference": "NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua. Verificar articulo exacto con NEC oficial, Master Electrician o AHJ. / Verify the exact article with the official NEC, Master Electrician, or AHJ.",
+      "checklist": [
+        "Confirmar amperaje real de placa del EV charger",
+        "Confirmar que el circuito es dedicado (sin otras cargas)",
+        "Verificar calibre de conductor para 125% de la carga continua",
+        "Verificar capacidad disponible en el panel (load calculation)",
+        "Verificar si se requiere permiso local para EV charger",
+        "Confirmar metodo de instalacion (conduit, distancia al panel)"
+      ],
+      "missingQuestions": [
+        "Ciudad / jurisdiccion (AHJ)",
+        "Amperaje exacto de placa del cargador",
+        "Calibre y tipo de conductor instalado",
+        "Distancia entre el panel y el EV charger",
+        "Capacidad disponible en el panel segun ultimo load calculation"
+      ],
+      "recommendation": "Documentar los datos de placa del charger y el load calculation antes de continuar. Escalar al Master Electrician por ser un circuito de alto riesgo (feeder/EV charger).",
+      "warning": "Esta respuesta es una revision preliminar. La aprobacion final corresponde al Master Electrician, al diseñador del plano, al inspector y a la autoridad local competente.\nThis response is a preliminary review. Final approval belongs to the Master Electrician, the drawing designer, the inspector, and the local authority having jurisdiction (AHJ).",
+      "englishSummary": "A 48A EV charger is a continuous load: the breaker must be at least 125% of the continuous load (48A x 1.25 = 60A), so a dedicated 60A breaker is the typical expected size, provided the conductor and circuit are also sized for 125% of the continuous load."
+    },
+    "riskLevel": "alto",
+    "requiresMasterReview": true,
+    "createdAt": "2026-07-08T22:47:27.230Z"
+  },
+  {
+    "id": "2afd8696-c1bf-4daf-bff8-c9eef4de4f14",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "bilingual",
+    "question": "VOY HACER UNA DEMOLICION Y REMODELACION   DE UNA COCINA, QUE ASPECTOS DEBO TENER ENCUENTA SEGUN EL NEC",
+    "response": {
+      "shortAnswer": "Entiendo tu consulta general. Con la informacion disponible no puedo dar un detalle tecnico especifico todavia: cuentame mas sobre el tipo de trabajo, ubicacion, amperaje y circuito involucrado para darte una revision preliminar mas precisa.",
+      "riskLevel": "bajo",
+      "codeReference": "Verificar articulo exacto con NEC oficial, Master Electrician o AHJ. / Verify the exact article with the official NEC, Master Electrician, or AHJ.",
+      "checklist": [
+        "Recopilar mas detalles tecnicos de la consulta",
+        "Confirmar ubicacion y tipo de trabajo"
+      ],
+      "missingQuestions": [
+        "Ciudad / tipo de servicio",
+        "Amperaje / breaker involucrado",
+        "Tipo de conductor",
+        "Carga o equipo involucrado",
+        "Distancia de instalacion",
+        "Tipo de ocupacion"
+      ],
+      "recommendation": "Pedir mas informacion antes de dar una recomendacion tecnica especifica.",
+      "warning": "Esta respuesta es una revision preliminar. La aprobacion final corresponde al Master Electrician, al diseñador del plano, al inspector y a la autoridad local competente.\nThis response is a preliminary review. Final approval belongs to the Master Electrician, the drawing designer, the inspector, and the local authority having jurisdiction (AHJ).",
+      "englishSummary": "I understand your general question. With the information available I cannot give a specific technical detail yet: tell me more about the type of work, location, amperage, and circuit involved so I can give a more precise preliminary review."
+    },
+    "riskLevel": "bajo",
+    "requiresMasterReview": true,
+    "createdAt": "2026-07-08T22:49:47.767Z"
+  }
+]

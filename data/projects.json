@@ -1,0 +1,11 @@
+[
+  {
+    "id": "p-demo-1",
+    "name": "Residencia Johnson - Panel Upgrade",
+    "client": "Mark Johnson",
+    "address": "1420 Oak Forest Dr, Houston, TX",
+    "createdBy": "u-tecnico",
+    "status": "activo",
+    "createdAt": "2026-06-15T14:00:00.000Z"
+  }
+]
