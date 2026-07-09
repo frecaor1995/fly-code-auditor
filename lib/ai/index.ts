@@ -8,10 +8,24 @@ function useMock(): boolean {
   return process.env.USE_MOCK_AI !== "false";
 }
 
+// El motor local (mock) es siempre la ruta garantizada: no depende de ninguna
+// API paga ni servicio externo. Si USE_MOCK_AI=false y el proveedor externo
+// falla por cualquier razon (sin API key, error de red, rate limit), se cae
+// automaticamente al motor local en vez de dejar la consulta sin respuesta.
 export async function askAssistant(input: AskAssistantInput): Promise<AssistantResponse> {
-  return useMock() ? mockAskAssistant(input) : openaiAskAssistant(input);
+  if (useMock()) return mockAskAssistant(input);
+  try {
+    return await openaiAskAssistant(input);
+  } catch {
+    return mockAskAssistant(input);
+  }
 }
 
 export async function analyzePlan(input: AnalyzePlanInput): Promise<AssistantResponse> {
-  return useMock() ? mockAnalyzePlan(input) : openaiAnalyzePlan(input);
+  if (useMock()) return mockAnalyzePlan(input);
+  try {
+    return await openaiAnalyzePlan(input);
+  } catch {
+    return mockAnalyzePlan(input);
+  }
 }

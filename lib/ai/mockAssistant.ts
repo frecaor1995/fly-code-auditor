@@ -132,6 +132,86 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
     });
   }
 
+  // TDLR / licencias y supervision del Master Electrician
+  if (includesAny(q, ["tdlr", "licencia", "license", "supervision", "supervisor", "master electrician license"])) {
+    return base(language, {
+      shortAnswer:
+        "Todo trabajo electrico en Texas debe ser realizado o supervisado por personal con licencia TDLR vigente. El Master Electrician es responsable de la supervision final y de que el trabajo cumpla con el NEC adoptado y las reglas de TDLR antes de solicitar inspeccion.",
+      englishSummary:
+        "All electrical work in Texas must be performed or supervised by personnel with a valid TDLR license. The Master Electrician is responsible for final supervision and for ensuring the work complies with the adopted NEC and TDLR rules before requesting inspection.",
+      riskLevel: "medio",
+      codeReference: `Reglas de licenciamiento TDLR (Texas Department of Licensing and Regulation). ${verifyNecMessage(language)}`,
+      checklist: [
+        "Confirmar que la licencia TDLR del Master Electrician este vigente",
+        "Confirmar que el nivel de licencia cubra el tipo de trabajo (residencial/comercial)",
+        "Documentar quien supervisa el trabajo en sitio",
+        "Verificar requisitos de continuing education si aplica"
+      ],
+      missingQuestions: ["Numero de licencia TDLR del Master Electrician", "Tipo de trabajo (residencial/comercial)"],
+      recommendation: "Confirmar con el Master Electrician el numero de licencia y el alcance de supervision antes de continuar."
+    });
+  }
+
+  // Houston AHJ / Permitting Center
+  if (includesAny(q, ["ahj", "houston permitting", "permitting center", "permiso", "permit"])) {
+    return base(language, {
+      shortAnswer:
+        "La autoridad local competente (AHJ) determina el codigo exacto adoptado, el proceso de permiso y los requisitos de inspeccion. En Houston, el Houston Permitting Center exige permiso para la mayoria de trabajos de panel upgrade, subpaneles y EV chargers.",
+      englishSummary:
+        "The local authority having jurisdiction (AHJ) determines the exact adopted code, permit process, and inspection requirements. In Houston, the Houston Permitting Center requires a permit for most panel upgrade, subpanel, and EV charger work.",
+      riskLevel: "medio",
+      codeReference: `Houston Permitting Center / AHJ local. ${verifyNecMessage(language)}`,
+      checklist: [
+        "Confirmar la ciudad / jurisdiccion exacta del proyecto",
+        "Verificar si el trabajo requiere permiso antes de iniciar",
+        "Confirmar el codigo edition adoptado por el AHJ",
+        "Agendar la inspeccion una vez el trabajo este listo"
+      ],
+      missingQuestions: ["Ciudad / jurisdiccion (AHJ)", "Tipo de trabajo a permisar"],
+      recommendation: "Verificar el requisito de permiso vigente directamente con Houston Permitting Center o el AHJ correspondiente antes de cotizar o ejecutar."
+    });
+  }
+
+  // NFPA 70E / LOTO / seguridad electrica
+  if (includesAny(q, ["nfpa 70e", "loto", "bloqueo", "etiquetado", "lockout", "tagout", "arc flash", "epp"])) {
+    return base(language, {
+      shortAnswer:
+        "Todo trabajo en paneles, feeders o servicio principal requiere de-energizar el circuito, aplicar bloqueo/etiquetado (LOTO), verificar ausencia de voltaje con un multimetro calibrado, y usar el EPP correspondiente segun NFPA 70E antes de tocar cualquier componente.",
+      englishSummary:
+        "Any work on panels, feeders, or the main service requires de-energizing the circuit, applying lockout/tagout (LOTO), verifying absence of voltage with a calibrated multimeter, and using the appropriate PPE per NFPA 70E before touching any component.",
+      riskLevel: "critico",
+      codeReference: `NFPA 70E (seguridad electrica en el lugar de trabajo). ${verifyNecMessage(language)}`,
+      checklist: [
+        "De-energizar el circuito antes de trabajar",
+        "Aplicar bloqueo/etiquetado (LOTO) visible",
+        "Verificar ausencia de voltaje con multimetro calibrado",
+        "Usar EPP adecuado segun el nivel de riesgo de arc flash",
+        "Escalar al Master Electrician antes de volver a energizar"
+      ],
+      missingQuestions: ["Tipo de panel o equipo a intervenir", "Voltaje y amperaje del servicio"],
+      recommendation: "Riesgo critico (shock electrico / arc flash). No energizar ni continuar sin LOTO completo y verificacion del Master Electrician."
+    });
+  }
+
+  // Simbologia electrica
+  if (includesAny(q, ["simbologia", "simbolo", "symbol", "leyenda del plano", "legend"])) {
+    return base(language, {
+      shortAnswer:
+        "La simbologia electrica basica en planos incluye: receptaculo estandar, receptaculo GFCI, receptaculo weatherproof, luminaria de techo/pared, interruptor sencillo o de 3 vias, panel electrico, home run, disconnect, y transformador. Cada set de planos trae su propia leyenda: siempre confirmala antes de interpretar simbolos.",
+      englishSummary:
+        "Basic electrical drawing symbols include: standard receptacle, GFCI receptacle, weatherproof receptacle, ceiling/wall fixture, single-pole or 3-way switch, electrical panel, home run, disconnect, and transformer. Every drawing set has its own legend: always confirm it before interpreting symbols.",
+      riskLevel: "bajo",
+      codeReference: `Referencia interna de simbologia; confirmar siempre contra la leyenda especifica del set de planos. ${verifyNecMessage(language)}`,
+      checklist: [
+        "Localizar la leyenda de simbolos en la hoja de notas generales (E0.1)",
+        "Confirmar que el simbolo interpretado coincide con la leyenda del set actual",
+        "No asumir un simbolo estandar si el set trae una leyenda distinta"
+      ],
+      missingQuestions: ["Hoja donde aparece el simbolo", "Leyenda disponible en el set de planos"],
+      recommendation: "Confirmar cada simbolo contra la leyenda oficial del set de planos antes de usarlo en una cotizacion o instalacion."
+    });
+  }
+
   // Checklist pre-inspeccion
   if (includesAny(q, ["checklist", "antes de inspeccion", "pre-inspeccion", "before inspection"])) {
     return base(language, {
@@ -198,12 +278,16 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
     });
   }
 
-  // Fallback generico
+  // Fallback: la pregunta no coincide con ninguna categoria de la base interna.
+  // No se inventa una respuesta tecnica; se informa la limitacion explicitamente.
+  const NO_MATCH_ES =
+    "No tengo suficiente informacion en la base interna para responder con seguridad. Consulte el NEC oficial, TDLR, Houston AHJ o el Master Electrician.";
+  const NO_MATCH_EN =
+    "I do not have enough information in the internal knowledge base to answer safely. Please consult the official NEC, TDLR, Houston AHJ, or the Master Electrician.";
+
   return base(language, {
-    shortAnswer:
-      "Entiendo tu consulta general. Con la informacion disponible no puedo dar un detalle tecnico especifico todavia: cuentame mas sobre el tipo de trabajo, ubicacion, amperaje y circuito involucrado para darte una revision preliminar mas precisa.",
-    englishSummary:
-      "I understand your general question. With the information available I cannot give a specific technical detail yet: tell me more about the type of work, location, amperage, and circuit involved so I can give a more precise preliminary review.",
+    shortAnswer: NO_MATCH_ES,
+    englishSummary: language !== "es" ? NO_MATCH_EN : undefined,
     riskLevel: "bajo",
     codeReference: verifyNecMessage(language),
     checklist: ["Recopilar mas detalles tecnicos de la consulta", "Confirmar ubicacion y tipo de trabajo"],

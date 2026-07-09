@@ -28,17 +28,25 @@ export async function POST(req: NextRequest) {
   const mode = (body?.mode as QueryMode) ?? "texto";
   const projectId = (body?.projectId as string | null) ?? null;
 
-  const response = await askAssistant({ question, language });
+  try {
+    const response = await askAssistant({ question, language });
 
-  const query = createQuery({
-    projectId,
-    planId: null,
-    userId: user.id,
-    mode,
-    language,
-    question,
-    response
-  });
+    const query = createQuery({
+      projectId,
+      planId: null,
+      userId: user.id,
+      mode,
+      language,
+      question,
+      response
+    });
 
-  return NextResponse.json({ query }, { status: 201 });
+    return NextResponse.json({ query }, { status: 201 });
+  } catch (error) {
+    console.error("Error generando respuesta del asistente:", error);
+    return NextResponse.json(
+      { error: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos." },
+      { status: 500 }
+    );
+  }
 }

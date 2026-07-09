@@ -65,5 +65,221 @@
     "riskLevel": "bajo",
     "requiresMasterReview": true,
     "createdAt": "2026-07-08T22:49:47.767Z"
+  },
+  {
+    "id": "a954cca9-f1eb-4e6b-b0af-3fef8874d570",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "bilingual",
+    "question": "Necesito instalar un EV charger de 48A, que breaker necesito?",
+    "response": {
+      "shortAnswer": "Un EV charger de 48A es una carga continua: el breaker debe ser minimo 125% de la carga continua (48A x 1.25 = 60A), por lo que un breaker de 60A dedicado es el tamano tipico esperado para ese charger, siempre que el conductor y el circuito esten dimensionados igual para 125% de la carga continua.",
+      "riskLevel": "alto",
+      "codeReference": "NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua. Verificar articulo exacto con NEC oficial, Master Electrician o AHJ. / Verify the exact article with the official NEC, Master Electrician, or AHJ.",
+      "checklist": [
+        "Confirmar amperaje real de placa del EV charger",
+        "Confirmar que el circuito es dedicado (sin otras cargas)",
+        "Verificar calibre de conductor para 125% de la carga continua",
+        "Verificar capacidad disponible en el panel (load calculation)",
+        "Verificar si se requiere permiso local para EV charger",
+        "Confirmar metodo de instalacion (conduit, distancia al panel)"
+      ],
+      "missingQuestions": [
+        "Ciudad / jurisdiccion (AHJ)",
+        "Amperaje exacto de placa del cargador",
+        "Calibre y tipo de conductor instalado",
+        "Distancia entre el panel y el EV charger",
+        "Capacidad disponible en el panel segun ultimo load calculation"
+      ],
+      "recommendation": "Documentar los datos de placa del charger y el load calculation antes de continuar. Escalar al Master Electrician por ser un circuito de alto riesgo (feeder/EV charger).",
+      "warning": "Esta respuesta es una revision preliminar. La aprobacion final corresponde al Master Electrician, al diseñador del plano, al inspector y a la autoridad local competente.\nThis response is a preliminary review. Final approval belongs to the Master Electrician, the drawing designer, the inspector, and the local authority having jurisdiction (AHJ).",
+      "englishSummary": "A 48A EV charger is a continuous load: the breaker must be at least 125% of the continuous load (48A x 1.25 = 60A), so a dedicated 60A breaker is the typical expected size, provided the conductor and circuit are also sized for 125% of the continuous load."
+    },
+    "riskLevel": "alto",
+    "requiresMasterReview": true,
+    "createdAt": "2026-07-09T02:01:18.809Z"
+  },
+  {
+    "id": "655e0fb0-c394-4bac-b362-7d19d606a8f5",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "es",
+    "question": "Cual es el procedimiento de LOTO antes de trabajar en un panel?",
+    "response": {
+      "shortAnswer": "Todo trabajo en paneles, feeders o servicio principal requiere de-energizar el circuito, aplicar bloqueo/etiquetado (LOTO), verificar ausencia de voltaje con un multimetro calibrado, y usar el EPP correspondiente segun NFPA 70E antes de tocar cualquier componente.",
+      "riskLevel": "critico",
+      "codeReference": "NFPA 70E (seguridad electrica en el lugar de trabajo). Verificar articulo exacto con NEC oficial, Master Electrician o AHJ.",
+      "checklist": [
+        "De-energizar el circuito antes de trabajar",
+        "Aplicar bloqueo/etiquetado (LOTO) visible",
+        "Verificar ausencia de voltaje con multimetro calibrado",
+        "Usar EPP adecuado segun el nivel de riesgo de arc flash",
+        "Escalar al Master Electrician antes de volver a energizar"
+      ],
+      "missingQuestions": [
+        "Tipo de panel o equipo a intervenir",
+        "Voltaje y amperaje del servicio"
+      ],
+      "recommendation": "Riesgo critico (shock electrico / arc flash). No energizar ni continuar sin LOTO completo y verificacion del Master Electrician.",
+      "warning": "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.",
+      "englishSummary": "Any work on panels, feeders, or the main service requires de-energizing the circuit, applying lockout/tagout (LOTO), verifying absence of voltage with a calibrated multimeter, and using the appropriate PPE per NFPA 70E before touching any component."
+    },
+    "riskLevel": "critico",
+    "requiresMasterReview": true,
+    "createdAt": "2026-07-09T02:06:19.222Z"
+  },
+  {
+    "id": "58112d47-029b-41f8-a9fd-fe1fb29a2ee0",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "es",
+    "question": "Que licencia TDLR necesito para supervisar este trabajo?",
+    "response": {
+      "shortAnswer": "Todo trabajo electrico en Texas debe ser realizado o supervisado por personal con licencia TDLR vigente. El Master Electrician es responsable de la supervision final y de que el trabajo cumpla con el NEC adoptado y las reglas de TDLR antes de solicitar inspeccion.",
+      "riskLevel": "medio",
+      "codeReference": "Reglas de licenciamiento TDLR (Texas Department of Licensing and Regulation). Verificar articulo exacto con NEC oficial, Master Electrician o AHJ.",
+      "checklist": [
+        "Confirmar que la licencia TDLR del Master Electrician este vigente",
+        "Confirmar que el nivel de licencia cubra el tipo de trabajo (residencial/comercial)",
+        "Documentar quien supervisa el trabajo en sitio",
+        "Verificar requisitos de continuing education si aplica"
+      ],
+      "missingQuestions": [
+        "Numero de licencia TDLR del Master Electrician",
+        "Tipo de trabajo (residencial/comercial)"
+      ],
+      "recommendation": "Confirmar con el Master Electrician el numero de licencia y el alcance de supervision antes de continuar.",
+      "warning": "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.",
+      "englishSummary": "All electrical work in Texas must be performed or supervised by personnel with a valid TDLR license. The Master Electrician is responsible for final supervision and for ensuring the work complies with the adopted NEC and TDLR rules before requesting inspection."
+    },
+    "riskLevel": "medio",
+    "requiresMasterReview": false,
+    "createdAt": "2026-07-09T02:06:19.262Z"
+  },
+  {
+    "id": "f8aa35f3-6732-454a-9fcb-453f9054ce98",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "es",
+    "question": "Necesito permiso del Houston Permitting Center para esto?",
+    "response": {
+      "shortAnswer": "La autoridad local competente (AHJ) determina el codigo exacto adoptado, el proceso de permiso y los requisitos de inspeccion. En Houston, el Houston Permitting Center exige permiso para la mayoria de trabajos de panel upgrade, subpaneles y EV chargers.",
+      "riskLevel": "medio",
+      "codeReference": "Houston Permitting Center / AHJ local. Verificar articulo exacto con NEC oficial, Master Electrician o AHJ.",
+      "checklist": [
+        "Confirmar la ciudad / jurisdiccion exacta del proyecto",
+        "Verificar si el trabajo requiere permiso antes de iniciar",
+        "Confirmar el codigo edition adoptado por el AHJ",
+        "Agendar la inspeccion una vez el trabajo este listo"
+      ],
+      "missingQuestions": [
+        "Ciudad / jurisdiccion (AHJ)",
+        "Tipo de trabajo a permisar"
+      ],
+      "recommendation": "Verificar el requisito de permiso vigente directamente con Houston Permitting Center o el AHJ correspondiente antes de cotizar o ejecutar.",
+      "warning": "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.",
+      "englishSummary": "The local authority having jurisdiction (AHJ) determines the exact adopted code, permit process, and inspection requirements. In Houston, the Houston Permitting Center requires a permit for most panel upgrade, subpanel, and EV charger work."
+    },
+    "riskLevel": "medio",
+    "requiresMasterReview": false,
+    "createdAt": "2026-07-09T02:06:19.303Z"
+  },
+  {
+    "id": "1e0459b3-2a40-4549-a6d7-8f8447c55866",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "es",
+    "question": "Que significa este simbolo en el plano?",
+    "response": {
+      "shortAnswer": "La simbologia electrica basica en planos incluye: receptaculo estandar, receptaculo GFCI, receptaculo weatherproof, luminaria de techo/pared, interruptor sencillo o de 3 vias, panel electrico, home run, disconnect, y transformador. Cada set de planos trae su propia leyenda: siempre confirmala antes de interpretar simbolos.",
+      "riskLevel": "bajo",
+      "codeReference": "Referencia interna de simbologia; confirmar siempre contra la leyenda especifica del set de planos. Verificar articulo exacto con NEC oficial, Master Electrician o AHJ.",
+      "checklist": [
+        "Localizar la leyenda de simbolos en la hoja de notas generales (E0.1)",
+        "Confirmar que el simbolo interpretado coincide con la leyenda del set actual",
+        "No asumir un simbolo estandar si el set trae una leyenda distinta"
+      ],
+      "missingQuestions": [
+        "Hoja donde aparece el simbolo",
+        "Leyenda disponible en el set de planos"
+      ],
+      "recommendation": "Confirmar cada simbolo contra la leyenda oficial del set de planos antes de usarlo en una cotizacion o instalacion.",
+      "warning": "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.",
+      "englishSummary": "Basic electrical drawing symbols include: standard receptacle, GFCI receptacle, weatherproof receptacle, ceiling/wall fixture, single-pole or 3-way switch, electrical panel, home run, disconnect, and transformer. Every drawing set has its own legend: always confirm it before interpreting symbols."
+    },
+    "riskLevel": "bajo",
+    "requiresMasterReview": false,
+    "createdAt": "2026-07-09T02:06:19.340Z"
+  },
+  {
+    "id": "e120d3e2-fa16-452e-af60-725fed3082ef",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "es",
+    "question": "cual es el precio del cafe hoy",
+    "response": {
+      "shortAnswer": "No tengo suficiente informacion en la base interna para responder con seguridad. Consulte el NEC oficial, TDLR, Houston AHJ o el Master Electrician.",
+      "riskLevel": "bajo",
+      "codeReference": "Verificar articulo exacto con NEC oficial, Master Electrician o AHJ.",
+      "checklist": [
+        "Recopilar mas detalles tecnicos de la consulta",
+        "Confirmar ubicacion y tipo de trabajo"
+      ],
+      "missingQuestions": [
+        "Ciudad / tipo de servicio",
+        "Amperaje / breaker involucrado",
+        "Tipo de conductor",
+        "Carga o equipo involucrado",
+        "Distancia de instalacion",
+        "Tipo de ocupacion"
+      ],
+      "recommendation": "Pedir mas informacion antes de dar una recomendacion tecnica especifica.",
+      "warning": "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician."
+    },
+    "riskLevel": "bajo",
+    "requiresMasterReview": false,
+    "createdAt": "2026-07-09T02:06:19.374Z"
+  },
+  {
+    "id": "feabf492-ee4e-4413-891a-af78c7143671",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "es",
+    "question": "gfci en bano",
+    "response": {
+      "shortAnswer": "Los receptaculos en banos, cocinas (cerca de countertops), garajes, exteriores, sotanos no terminados, y a menos de 6 pies de un fregadero generalmente requieren proteccion GFCI. La ubicacion exacta y el tipo de ocupacion determinan el requisito final.",
+      "riskLevel": "medio",
+      "codeReference": "NEC Article 210.8 (proteccion GFCI para personas). Verificar articulo exacto con NEC oficial, Master Electrician o AHJ.",
+      "checklist": [
+        "Confirmar ubicacion exacta del receptaculo",
+        "Confirmar distancia a fregadero o fuente de agua",
+        "Verificar si el receptaculo es interior o exterior",
+        "Probar el boton de test/reset del GFCI instalado"
+      ],
+      "missingQuestions": [
+        "Ubicacion exacta del receptaculo (bano, cocina, garage, exterior, etc.)",
+        "Tipo de ocupacion (residencial o comercial)"
+      ],
+      "recommendation": "Continuar con la instalacion aplicando GFCI si la ubicacion corresponde a un area requerida; documentar la ubicacion en el reporte.",
+      "warning": "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.",
+      "englishSummary": "Receptacles in bathrooms, kitchens (near countertops), garages, exteriors, unfinished basements, and within 6 feet of a sink generally require GFCI protection. The exact location and occupancy type determine the final requirement."
+    },
+    "riskLevel": "medio",
+    "requiresMasterReview": false,
+    "createdAt": "2026-07-09T02:06:19.419Z"
   }
 ]

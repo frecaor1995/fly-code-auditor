@@ -23,10 +23,10 @@ export interface AiAdapter {
 }
 
 export const STANDARD_WARNING_ES =
-  "Esta respuesta es una revision preliminar. La aprobacion final corresponde al Master Electrician, al diseñador del plano, al inspector y a la autoridad local competente.";
+  "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.";
 
 export const STANDARD_WARNING_EN =
-  "This response is a preliminary review. Final approval belongs to the Master Electrician, the drawing designer, the inspector, and the local authority having jurisdiction (AHJ).";
+  "This response is an internal guide. Verify the applicable NEC article, TDLR, Houston AHJ, permits, inspections, and Master Electrician approval.";
 
 export function standardWarning(language: Language): string {
   if (language === "en") return STANDARD_WARNING_EN;

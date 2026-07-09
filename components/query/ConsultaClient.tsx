@@ -17,26 +17,45 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<QueryRecord | null>(null);
   const [escalated, setEscalated] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submitQuery(q: string, queryMode: "texto" | "voz") {
     if (!q.trim()) return;
     setLoading(true);
     setResult(null);
     setEscalated(false);
-    const res = await fetch("/api/queries", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        question: q,
-        mode: queryMode,
-        language: mode,
-        projectId: projectId || null
-      })
-    });
-    setLoading(false);
-    if (!res.ok) return;
-    const data = await res.json();
-    setResult(data.query);
+    setError(null);
+    try {
+      const res = await fetch("/api/queries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          question: q,
+          mode: queryMode,
+          language: mode,
+          projectId: projectId || null
+        })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.query) {
+        setError(
+          data?.error ??
+            (uiLang === "en"
+              ? "Something went wrong generating the response. Please try again."
+              : "Ocurrio un problema al generar la respuesta. Intenta de nuevo.")
+        );
+        return;
+      }
+      setResult(data.query);
+    } catch {
+      setError(
+        uiLang === "en"
+          ? "Could not reach the server. Check your connection and try again."
+          : "No se pudo conectar con el servidor. Verifica tu conexion e intenta de nuevo."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function escalate() {
@@ -101,6 +120,12 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
             }}
           />
           {question && <p className="text-sm text-fly-lightgray/80">"{question}"</p>}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-risk-critical bg-risk-critical/10 p-3 text-sm text-risk-critical">
+          {error}
         </div>
       )}
 
