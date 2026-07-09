@@ -7,9 +7,37 @@ body {
   height: 100%;
 }
 
+html {
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background-color: #0a0a0a;
   color: #ffffff;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+a {
+  touch-action: manipulation;
+}
+
+/* iOS Safari auto-zooms the page when a focused input has font-size < 16px.
+   Tailwind utilities like text-sm (14px) outrank a bare tag selector, so this
+   needs !important to actually win on small screens. */
+@media (max-width: 767px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+img {
+  max-width: 100%;
+  height: auto;
 }
 
 @media print {

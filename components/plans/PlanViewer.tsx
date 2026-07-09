@@ -22,20 +22,39 @@ export function PlanViewer({ plan, initialQueries }: { plan: PlanRecord; initial
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [queries, setQueries] = useState<QueryRecord[]>(initialQueries);
+  const [error, setError] = useState<string | null>(null);
 
   async function askAboutPlan(q: string) {
     if (!q.trim()) return;
     setLoading(true);
-    const res = await fetch(`/api/plans/${plan.id}/analyze`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ question: q, language: mode })
-    });
-    setLoading(false);
-    if (!res.ok) return;
-    const data = await res.json();
-    setQueries((prev) => [data.query, ...prev]);
-    setQuestion("");
+    setError(null);
+    try {
+      const res = await fetch(`/api/plans/${plan.id}/analyze`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: q, language: mode })
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data) {
+        setError(
+          data?.error ??
+            (uiLang === "en"
+              ? "Something went wrong analyzing the plan. Please try again."
+              : "Ocurrio un problema al analizar el plano. Intenta de nuevo.")
+        );
+        return;
+      }
+      setQueries((prev) => [data.query, ...prev]);
+      setQuestion("");
+    } catch {
+      setError(
+        uiLang === "en"
+          ? "Could not reach the server. Check your connection and try again."
+          : "No se pudo conectar con el servidor. Verifica tu conexion e intenta de nuevo."
+      );
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -76,6 +95,11 @@ export function PlanViewer({ plan, initialQueries }: { plan: PlanRecord; initial
           <BigActionButton onClick={() => askAboutPlan(question)} disabled={loading}>
             {loading ? "Analizando..." : t("action_analyzePlan")}
           </BigActionButton>
+          {error && (
+            <div className="rounded-lg border border-risk-critical bg-risk-critical/10 p-3 text-sm text-risk-critical">
+              {error}
+            </div>
+          )}
         </div>
       </div>
 

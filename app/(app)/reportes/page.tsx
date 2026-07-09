@@ -19,13 +19,15 @@ export default function ReportesPage() {
           <Link
             key={q.id}
             href={`/reportes/${q.id}/print`}
-            className="flex items-center justify-between rounded-xl border border-fly-gray bg-fly-charcoal p-4 hover:border-fly-gold transition"
+            className="flex items-center justify-between gap-2 rounded-xl border border-fly-gray bg-fly-charcoal p-4 hover:border-fly-gold transition"
           >
-            <div>
+            <div className="min-w-0 flex-1">
               <p className="text-sm font-medium line-clamp-1">{q.question}</p>
               <p className="text-xs text-fly-lightgray/60">{formatDateTime(q.createdAt)}</p>
             </div>
-            <RiskBadge risk={q.riskLevel} />
+            <span className="shrink-0">
+              <RiskBadge risk={q.riskLevel} />
+            </span>
           </Link>
         ))}
       </div>

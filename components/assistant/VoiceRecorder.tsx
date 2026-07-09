@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { t as translate } from "@/lib/i18n/dictionary";
 
 interface Props {
   lang: "es-US" | "en-US";
+  uiLang: "es" | "en";
   onResult: (transcript: string) => void;
+  onUseTextFallback?: () => void;
   labelIdle: string;
   labelRecording: string;
 }
 
 // Wrapper minimo sobre la Web Speech API del navegador (SpeechRecognition).
 // Solo funciona en navegadores compatibles (Chrome/Edge escritorio y Android).
-// Si el navegador no la soporta, se muestra un aviso y se recomienda usar texto.
-export function VoiceRecorder({ lang, onResult, labelIdle, labelRecording }: Props) {
+// iOS Safari no la implementa: en ese caso (y ante cualquier error del
+// microfono) se muestra un aviso claro y se ofrece continuar por texto.
+export function VoiceRecorder({ lang, uiLang, onResult, onUseTextFallback, labelIdle, labelRecording }: Props) {
   const [supported, setSupported] = useState(true);
   const [recording, setRecording] = useState(false);
+  const [micError, setMicError] = useState(false);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
@@ -33,7 +38,10 @@ export function VoiceRecorder({ lang, onResult, labelIdle, labelRecording }: Pro
       onResult(transcript);
     };
     recognition.onend = () => setRecording(false);
-    recognition.onerror = () => setRecording(false);
+    recognition.onerror = () => {
+      setRecording(false);
+      setMicError(true);
+    };
     recognitionRef.current = recognition;
   }, []);
 
@@ -45,22 +53,36 @@ export function VoiceRecorder({ lang, onResult, labelIdle, labelRecording }: Pro
 
   function toggleRecording() {
     if (!recognitionRef.current) return;
+    setMicError(false);
     if (recording) {
       recognitionRef.current.stop();
       setRecording(false);
     } else {
-      recognitionRef.current.start();
-      setRecording(true);
+      try {
+        recognitionRef.current.start();
+        setRecording(true);
+      } catch {
+        setMicError(true);
+      }
     }
   }
 
-  if (!supported) {
+  if (!supported || micError) {
     return (
-      <p className="text-sm text-fly-lightgray/70 border border-fly-gray rounded-lg p-3">
-        Reconocimiento de voz no disponible en este navegador. Usa la consulta por texto.
-        <br />
-        Voice recognition is not available in this browser. Please use the text query instead.
-      </p>
+      <div className="space-y-3 border border-fly-gray rounded-lg p-3">
+        <p className="text-sm text-fly-lightgray/70">
+          {translate(uiLang, supported ? "voice_micError" : "voice_unavailable")}
+        </p>
+        {onUseTextFallback && (
+          <button
+            type="button"
+            onClick={onUseTextFallback}
+            className="w-full min-h-[3rem] rounded-xl bg-fly-gold text-fly-black font-semibold"
+          >
+            {translate(uiLang, "voice_useText")}
+          </button>
+        )}
+      </div>
     );
   }
 

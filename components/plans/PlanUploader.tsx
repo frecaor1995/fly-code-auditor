@@ -52,7 +52,7 @@ export function PlanUploader({ projects }: { projects: Project[] }) {
         <label className="block text-sm text-fly-lightgray/70 mb-1">Archivo (PDF, JPG, PNG)</label>
         <input
           type="file"
-          accept=".pdf,.jpg,.jpeg,.png"
+          accept="application/pdf,image/*"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
           className="block w-full text-sm text-fly-white file:mr-3 file:rounded-lg file:border-0 file:bg-fly-gold file:px-3 file:py-2 file:text-fly-black file:font-semibold"
         />

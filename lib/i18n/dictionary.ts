@@ -30,6 +30,15 @@ export const dictionary = {
   query_none: { es: "Sin proyecto (consulta general)", en: "No project (general query)" },
   query_recordStart: { es: "Presiona para hablar", en: "Tap to speak" },
   query_recordStop: { es: "Grabando... presiona para detener", en: "Recording... tap to stop" },
+  voice_unavailable: {
+    es: "La voz no esta disponible en este navegador. Use consulta escrita o active integracion Whisper.",
+    en: "Voice is not available in this browser. Please use the written query or enable Whisper integration."
+  },
+  voice_micError: {
+    es: "No se pudo acceder al microfono. Use consulta escrita o active integracion Whisper.",
+    en: "Could not access the microphone. Please use the written query or enable Whisper integration."
+  },
+  voice_useText: { es: "Escribir mi consulta", en: "Write my query" },
   response_shortAnswer: { es: "Respuesta corta", en: "Short answer" },
   response_englishSummary: { es: "English summary", en: "English summary" },
   response_riskLevel: { es: "Nivel de riesgo", en: "Risk level" },

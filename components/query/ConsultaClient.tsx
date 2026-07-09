@@ -150,12 +150,14 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
         <div className="space-y-3">
           <VoiceRecorder
             lang={uiLang === "en" ? "en-US" : "es-US"}
+            uiLang={uiLang}
             labelIdle={t("query_recordStart")}
             labelRecording={t("query_recordStop")}
             onResult={(transcript) => {
               setQuestion(transcript);
               submitQuery(transcript, "voz");
             }}
+            onUseTextFallback={() => setTab("texto")}
           />
           {question && <p className="text-sm text-fly-lightgray/80">"{question}"</p>}
         </div>

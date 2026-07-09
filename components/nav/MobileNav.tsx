@@ -30,7 +30,7 @@ export function MobileNav({ role, userName }: { role: Role; userName: string }) 
       </header>
 
       {open && (
-        <div className="fixed inset-0 z-40 bg-fly-black/95 flex flex-col p-4">
+        <div className="fixed inset-0 z-40 bg-fly-black/95 flex flex-col p-4 overflow-y-auto">
           <div className="flex justify-between items-center mb-6">
             <p className="text-fly-gold font-bold text-lg">{userName}</p>
             <button
