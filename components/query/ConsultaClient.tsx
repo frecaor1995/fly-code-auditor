@@ -2,12 +2,33 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Project, QueryRecord } from "@/lib/db/types";
+import type { Language, Project, QueryRecord } from "@/lib/db/types";
 import { BigActionButton } from "@/components/ui/BigActionButton";
 import { AssistantResponseCard } from "@/components/assistant/AssistantResponseCard";
 import { VoiceRecorder } from "@/components/assistant/VoiceRecorder";
 import { LanguageToggle } from "@/components/ui/LanguageToggle";
 import { useLanguage } from "@/lib/i18n/useLanguage";
+import { buildOfflineFallbackResponse } from "@/lib/ai/localFallback";
+
+// Se usa cuando /api/queries no responde de forma utilizable (red caida,
+// error 500, respuesta no-JSON, etc.). Garantiza que "Preguntar" siempre
+// muestre un panel de respuesta, incluso sin backend disponible.
+function buildLocalFallbackQuery(question: string, queryMode: "texto" | "voz", language: Language): QueryRecord {
+  const response = buildOfflineFallbackResponse(language);
+  return {
+    id: `local-${Date.now()}`,
+    projectId: null,
+    planId: null,
+    userId: "",
+    mode: queryMode,
+    language,
+    question,
+    response,
+    riskLevel: response.riskLevel,
+    requiresMasterReview: false,
+    createdAt: new Date().toISOString()
+  };
+}
 
 export function ConsultaClient({ projects }: { projects: Project[] }) {
   const { mode, changeMode, uiLang, t } = useLanguage();
@@ -40,57 +61,30 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
       const data = await res.json().catch(() => null);
       console.log("[ConsultaClient] Respuesta recibida:", data);
 
-      if (!res.ok || !data) {
-        setError(
-          data?.error ??
-            data?.answer ??
-            (uiLang === "en"
-              ? "Something went wrong generating the response. Please try again."
-              : "Ocurrio un problema al generar la respuesta. Intenta de nuevo.")
-        );
+      if (res.ok && data?.query) {
+        setResult(data.query);
         return;
       }
 
-      if (data.query) {
-        setResult(data.query);
-      } else if (data.answer) {
-        // Fallback: la API respondio sin el objeto "query" completo, pero si
-        // trae un texto de respuesta plano lo mostramos igual.
-        setResult({
-          id: "local-fallback",
-          projectId: projectId || null,
-          planId: null,
-          userId: "",
-          mode: queryMode,
-          language: mode,
-          question: q,
-          response: {
-            shortAnswer: data.answer,
-            riskLevel: "medio",
-            codeReference: "",
-            checklist: [],
-            missingQuestions: [],
-            recommendation: "",
-            warning: ""
-          },
-          riskLevel: "medio",
-          requiresMasterReview: false,
-          createdAt: new Date().toISOString()
-        });
-      } else {
-        setError(
-          uiLang === "en"
-            ? "The server responded without a usable answer. Please try again."
-            : "El servidor respondio sin una respuesta utilizable. Intenta de nuevo."
-        );
-      }
+      // El servidor respondio pero sin un query utilizable (error 500,
+      // permisos, body invalido, etc.): igual mostramos una respuesta mock
+      // de respaldo generada en el cliente para no dejar el panel vacio,
+      // dejando visible el motivo real del fallo arriba.
+      setError(
+        data?.error ??
+          (uiLang === "en"
+            ? "The server could not generate a response. Showing a local fallback answer."
+            : "El servidor no pudo generar una respuesta. Mostrando una respuesta de respaldo local.")
+      );
+      setResult(buildLocalFallbackQuery(q, queryMode, mode));
     } catch (err) {
       console.error("[ConsultaClient] Error de red o inesperado:", err);
       setError(
         uiLang === "en"
-          ? "Could not reach the server. Check your connection and try again."
-          : "No se pudo conectar con el servidor. Verifica tu conexion e intenta de nuevo."
+          ? "Could not reach the server. Showing a local fallback answer."
+          : "No se pudo conectar con el servidor. Mostrando una respuesta de respaldo local."
       );
+      setResult(buildLocalFallbackQuery(q, queryMode, mode));
     } finally {
       setLoading(false);
     }
