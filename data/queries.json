@@ -281,5 +281,74 @@
     "riskLevel": "medio",
     "requiresMasterReview": false,
     "createdAt": "2026-07-09T02:06:19.419Z"
+  },
+  {
+    "id": "18a309d5-41cb-40a7-ab6d-d2fdb0ca9512",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "bilingual",
+    "question": "EV charger de 48A",
+    "response": {
+      "shortAnswer": "Un EV charger de 48A es una carga continua: el breaker debe ser minimo 125% de la carga continua (48A x 1.25 = 60A), por lo que un breaker de 60A dedicado es el tamano tipico esperado para ese charger, siempre que el conductor y el circuito esten dimensionados igual para 125% de la carga continua.",
+      "riskLevel": "alto",
+      "codeReference": "NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua. Verificar articulo exacto con NEC oficial, Master Electrician o AHJ. / Verify the exact article with the official NEC, Master Electrician, or AHJ.",
+      "checklist": [
+        "Confirmar amperaje real de placa del EV charger",
+        "Confirmar que el circuito es dedicado (sin otras cargas)",
+        "Verificar calibre de conductor para 125% de la carga continua",
+        "Verificar capacidad disponible en el panel (load calculation)",
+        "Verificar si se requiere permiso local para EV charger",
+        "Confirmar metodo de instalacion (conduit, distancia al panel)"
+      ],
+      "missingQuestions": [
+        "Ciudad / jurisdiccion (AHJ)",
+        "Amperaje exacto de placa del cargador",
+        "Calibre y tipo de conductor instalado",
+        "Distancia entre el panel y el EV charger",
+        "Capacidad disponible en el panel segun ultimo load calculation"
+      ],
+      "recommendation": "Documentar los datos de placa del charger y el load calculation antes de continuar. Escalar al Master Electrician por ser un circuito de alto riesgo (feeder/EV charger).",
+      "warning": "Esta respuesta usa la base interna de referencia de Fly Electric Solutions LLC (elaborada a partir de NEC 2023, TDLR y Houston AHJ), no el texto oficial completo del NEC. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.\nThis response uses Fly Electric Solutions LLC's internal reference base (built from NEC 2023, TDLR, and Houston AHJ), not the full official NEC text. Verify the applicable NEC article, TDLR, Houston AHJ, permits, inspections, and Master Electrician approval.",
+      "englishSummary": "A 48A EV charger is a continuous load: the breaker must be at least 125% of the continuous load (48A x 1.25 = 60A), so a dedicated 60A breaker is the typical expected size, provided the conductor and circuit are also sized for 125% of the continuous load.",
+      "sourceInfo": "Base usada para esta respuesta:\n- Fuente interna usada: Base interna de referencia de Fly Electric Solutions LLC (elaborada a partir de NEC 2023, TDLR y Houston AHJ). No es el texto oficial completo del NEC.\n- Categoria detectada: EV charger\n- Referencia NEC general (si aplica): NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua\n- Archivo interno: data/knowledgeBase.json (kb-5: \"Guia rapida EV charger residencial\")\n- Nivel de confianza: medio\n- Que debe verificar el Master Electrician: Confirmar \"EV charger\" contra NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua, el NEC oficial vigente, TDLR, Houston AHJ, permisos e inspeccion antes de aprobar o cerrar el trabajo.\n\nSource used for this response:\n- Internal source used: Fly Electric Solutions LLC internal reference base (built from NEC 2023, TDLR, and Houston AHJ). This is not the full official NEC text.\n- Detected category: EV charger\n- General NEC reference (if applicable): NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua\n- Internal file: data/knowledgeBase.json (kb-5: \"Guia rapida EV charger residencial\")\n- Confidence level: medio\n- What the Master Electrician must verify: Confirmar \"EV charger\" contra NEC Article 625 (EV charging equipment) y regla general de 125% para carga continua, el NEC oficial vigente, TDLR, Houston AHJ, permisos e inspeccion antes de aprobar o cerrar el trabajo."
+    },
+    "riskLevel": "alto",
+    "requiresMasterReview": true,
+    "createdAt": "2026-07-09T02:59:41.960Z"
+  },
+  {
+    "id": "6d1c6480-f61e-4ebb-b2a6-9ef06acc843e",
+    "projectId": null,
+    "planId": null,
+    "userId": "u-tecnico",
+    "mode": "texto",
+    "language": "bilingual",
+    "question": "¿El sistema consulta el NEC oficial completo?",
+    "response": {
+      "shortAnswer": "No tengo suficiente informacion en la base interna de Fly Electric Solutions LLC (basada en NEC 2023, TDLR y Houston AHJ) para responder esta pregunta con seguridad. Esta base interna no reemplaza el texto oficial completo del NEC: verifique el NEC oficial, TDLR, Houston AHJ o consulte directamente al Master Electrician.",
+      "riskLevel": "bajo",
+      "codeReference": "Verificar articulo exacto con NEC oficial, Master Electrician o AHJ. / Verify the exact article with the official NEC, Master Electrician, or AHJ.",
+      "checklist": [
+        "Recopilar mas detalles tecnicos de la consulta",
+        "Confirmar ubicacion y tipo de trabajo"
+      ],
+      "missingQuestions": [
+        "Ciudad / tipo de servicio",
+        "Amperaje / breaker involucrado",
+        "Tipo de conductor",
+        "Carga o equipo involucrado",
+        "Distancia de instalacion",
+        "Tipo de ocupacion"
+      ],
+      "recommendation": "Pedir mas informacion antes de dar una recomendacion tecnica especifica.",
+      "warning": "Esta respuesta usa la base interna de referencia de Fly Electric Solutions LLC (elaborada a partir de NEC 2023, TDLR y Houston AHJ), no el texto oficial completo del NEC. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.\nThis response uses Fly Electric Solutions LLC's internal reference base (built from NEC 2023, TDLR, and Houston AHJ), not the full official NEC text. Verify the applicable NEC article, TDLR, Houston AHJ, permits, inspections, and Master Electrician approval.",
+      "englishSummary": "I do not have enough information in Fly Electric Solutions LLC's internal base (built from NEC 2023, TDLR, and Houston AHJ) to answer this question safely. This internal base does not replace the full official NEC text: please verify with the official NEC, TDLR, Houston AHJ, or consult the Master Electrician directly.",
+      "sourceInfo": "Base usada para esta respuesta:\n- Fuente interna usada: Base interna de referencia de Fly Electric Solutions LLC (elaborada a partir de NEC 2023, TDLR y Houston AHJ). No es el texto oficial completo del NEC.\n- Categoria detectada: No identificada (pregunta general sin categoria especifica)\n- Referencia NEC general (si aplica): No aplica un articulo NEC especifico para esta pregunta\n- Archivo interno: lib/ai/mockAssistant.ts (regla interna del motor de reglas, sin entrada dedicada en data/knowledgeBase.json)\n- Nivel de confianza: bajo\n- Que debe verificar el Master Electrician: Determinar junto con el Master Electrician cual es la regla NEC, TDLR o Houston AHJ aplicable antes de proceder.\n\nSource used for this response:\n- Internal source used: Fly Electric Solutions LLC internal reference base (built from NEC 2023, TDLR, and Houston AHJ). This is not the full official NEC text.\n- Detected category: No identificada (pregunta general sin categoria especifica)\n- General NEC reference (if applicable): No aplica un articulo NEC especifico para esta pregunta\n- Internal file: lib/ai/mockAssistant.ts (regla interna del motor de reglas, sin entrada dedicada en data/knowledgeBase.json)\n- Confidence level: bajo\n- What the Master Electrician must verify: Determinar junto con el Master Electrician cual es la regla NEC, TDLR o Houston AHJ aplicable antes de proceder."
+    },
+    "riskLevel": "bajo",
+    "requiresMasterReview": false,
+    "createdAt": "2026-07-09T03:01:27.578Z"
   }
 ]

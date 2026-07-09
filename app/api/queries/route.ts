@@ -20,6 +20,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json().catch(() => null);
   const question = body?.question as string | undefined;
+  console.log("[api/queries] Pregunta recibida:", question);
   if (!question || question.trim().length === 0) {
     return NextResponse.json({ error: "La pregunta no puede estar vacia." }, { status: 400 });
   }
@@ -41,11 +42,17 @@ export async function POST(req: NextRequest) {
       response
     });
 
-    return NextResponse.json({ query }, { status: 201 });
+    console.log("[api/queries] Respuesta generada (motor local):", response.shortAnswer);
+    // "answer" se incluye plano ademas de "query" para cualquier consumidor
+    // que solo necesite el texto de la respuesta sin el objeto completo.
+    return NextResponse.json({ query, answer: response.shortAnswer }, { status: 201 });
   } catch (error) {
-    console.error("Error generando respuesta del asistente:", error);
+    console.error("[api/queries] Error generando respuesta del asistente:", error);
     return NextResponse.json(
-      { error: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos." },
+      {
+        error: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos.",
+        answer: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos."
+      },
       { status: 500 }
     );
   }

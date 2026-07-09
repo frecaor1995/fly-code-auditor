@@ -22,6 +22,7 @@ const LABELS = {
     missingQuestions: "7. Preguntas faltantes",
     recommendation: "8. Recomendacion",
     warning: "9. Advertencia",
+    sourceInfo: "10. Base usada para esta respuesta",
     listen: "Escuchar",
     sheet: "Hoja",
     symbols: "Simbolos visibles",
@@ -41,6 +42,7 @@ const LABELS = {
     missingQuestions: "7. Missing questions",
     recommendation: "8. Recommendation",
     warning: "9. Warning",
+    sourceInfo: "10. Source used for this response",
     listen: "Listen",
     sheet: "Sheet",
     symbols: "Visible symbols",
@@ -138,6 +140,13 @@ export function AssistantResponseCard({ response, uiLang, actions }: Props) {
         <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.warning}</h3>
         <p className="text-xs text-fly-lightgray whitespace-pre-line">{response.warning}</p>
       </section>
+
+      {response.sourceInfo && (
+        <section className="border border-fly-gray/60 rounded-xl p-3">
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.sourceInfo}</h3>
+          <p className="text-xs text-fly-lightgray whitespace-pre-line">{response.sourceInfo}</p>
+        </section>
+      )}
 
       {actions && <div className="flex flex-col gap-2 pt-2">{actions}</div>}
     </div>

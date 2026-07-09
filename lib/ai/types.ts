@@ -23,10 +23,10 @@ export interface AiAdapter {
 }
 
 export const STANDARD_WARNING_ES =
-  "Esta respuesta es una guia interna. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.";
+  "Esta respuesta usa la base interna de referencia de Fly Electric Solutions LLC (elaborada a partir de NEC 2023, TDLR y Houston AHJ), no el texto oficial completo del NEC. Verifique el articulo NEC aplicable, TDLR, Houston AHJ, permisos, inspecciones y aprobacion del Master Electrician.";
 
 export const STANDARD_WARNING_EN =
-  "This response is an internal guide. Verify the applicable NEC article, TDLR, Houston AHJ, permits, inspections, and Master Electrician approval.";
+  "This response uses Fly Electric Solutions LLC's internal reference base (built from NEC 2023, TDLR, and Houston AHJ), not the full official NEC text. Verify the applicable NEC article, TDLR, Houston AHJ, permits, inspections, and Master Electrician approval.";
 
 export function standardWarning(language: Language): string {
   if (language === "en") return STANDARD_WARNING_EN;

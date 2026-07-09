@@ -25,6 +25,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
     setResult(null);
     setEscalated(false);
     setError(null);
+    console.log("[ConsultaClient] Pregunta enviada:", q);
     try {
       const res = await fetch("/api/queries", {
         method: "POST",
@@ -37,17 +38,54 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
         })
       });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.query) {
+      console.log("[ConsultaClient] Respuesta recibida:", data);
+
+      if (!res.ok || !data) {
         setError(
           data?.error ??
+            data?.answer ??
             (uiLang === "en"
               ? "Something went wrong generating the response. Please try again."
               : "Ocurrio un problema al generar la respuesta. Intenta de nuevo.")
         );
         return;
       }
-      setResult(data.query);
-    } catch {
+
+      if (data.query) {
+        setResult(data.query);
+      } else if (data.answer) {
+        // Fallback: la API respondio sin el objeto "query" completo, pero si
+        // trae un texto de respuesta plano lo mostramos igual.
+        setResult({
+          id: "local-fallback",
+          projectId: projectId || null,
+          planId: null,
+          userId: "",
+          mode: queryMode,
+          language: mode,
+          question: q,
+          response: {
+            shortAnswer: data.answer,
+            riskLevel: "medio",
+            codeReference: "",
+            checklist: [],
+            missingQuestions: [],
+            recommendation: "",
+            warning: ""
+          },
+          riskLevel: "medio",
+          requiresMasterReview: false,
+          createdAt: new Date().toISOString()
+        });
+      } else {
+        setError(
+          uiLang === "en"
+            ? "The server responded without a usable answer. Please try again."
+            : "El servidor respondio sin una respuesta utilizable. Intenta de nuevo."
+        );
+      }
+    } catch (err) {
+      console.error("[ConsultaClient] Error de red o inesperado:", err);
       setError(
         uiLang === "en"
           ? "Could not reach the server. Check your connection and try again."

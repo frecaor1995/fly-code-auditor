@@ -52,6 +52,7 @@ export interface AssistantResponse {
   missingQuestions: string[];
   recommendation: string;
   warning: string;
+  sourceInfo?: string;
 }
 
 export type QueryMode = "texto" | "voz";
