@@ -8,8 +8,11 @@ const nextConfig = {
   // serverless de /api. Sin esto, el file tracing automatico puede omitir
   // archivos leidos con rutas construidas dinamicamente (path.join(cwd, ...)),
   // causando fallos de lectura en produccion que no ocurren en local.
-  outputFileTracingIncludes: {
-    "/api/**/*": ["./data/**/*", "./storage/**/*"]
+  // En Next 14 esta opcion vive bajo "experimental" (se vuelve top-level en Next 15).
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/**/*": ["./data/**/*", "./storage/**/*"]
+    }
   }
 };
 
