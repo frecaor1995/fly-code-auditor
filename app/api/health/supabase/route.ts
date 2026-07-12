@@ -35,29 +35,48 @@ export async function GET() {
     if (readResult.error) throw readResult.error;
     canReadQueries = true;
 
-    // Insert real (no simulado) usando exactamente las columnas reales de
-    // public.queries, igual que lib/db/dbAdapter.ts#createQuery. Se borra
+    // Insert real (no simulado), con el mismo payload completo + columnas
+    // opcionales que usa lib/db/dbAdapter.ts#createQuery, reintentando con
+    // el set base de columnas si la tabla no tiene las opcionales. Se borra
     // la fila de prueba inmediatamente para no ensuciar el historial real.
-    const insertResult = await supabase
-      .from("queries")
-      .insert({
-        project_id: null,
-        user_email: null,
-        question: "[health-check] prueba de diagnostico automatica",
-        answer: JSON.stringify({
-          shortAnswer: "health-check",
-          riskLevel: "bajo",
-          codeReference: "",
-          checklist: [],
-          missingQuestions: [],
-          recommendation: "",
-          warning: ""
-        }),
-        language_mode: "es",
-        risk_level: "low"
-      })
-      .select("id")
-      .single();
+    const fullPayload = {
+      project_id: null,
+      user_email: null,
+      question: "[health-check] prueba de diagnostico automatica",
+      answer: JSON.stringify({
+        shortAnswer: "health-check",
+        riskLevel: "bajo",
+        codeReference: "",
+        checklist: [],
+        missingQuestions: [],
+        recommendation: "",
+        warning: ""
+      }),
+      language_mode: "es",
+      language: "es",
+      risk_level: "low",
+      category: "health_check",
+      source_used: "app/api/health/supabase/route.ts",
+      saved_to_db: true,
+      error_message: null
+    };
+    const corePayload = {
+      project_id: fullPayload.project_id,
+      user_email: fullPayload.user_email,
+      question: fullPayload.question,
+      answer: fullPayload.answer,
+      language_mode: fullPayload.language_mode,
+      risk_level: fullPayload.risk_level
+    };
+
+    let insertResult = await supabase.from("queries").insert(fullPayload).select("id").single();
+    const isMissingColumn =
+      insertResult.error?.code === "PGRST204" ||
+      insertResult.error?.code === "42703" ||
+      (insertResult.error?.message ?? "").toLowerCase().includes("column");
+    if (insertResult.error && isMissingColumn) {
+      insertResult = await supabase.from("queries").insert(corePayload).select("id").single();
+    }
     if (insertResult.error) throw insertResult.error;
     canInsertQueries = true;
 

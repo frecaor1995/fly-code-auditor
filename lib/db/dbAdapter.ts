@@ -208,6 +208,37 @@ function logSupabaseError(context: string, error: unknown): void {
   });
 }
 
+// El esquema real de public.queries ha ido cambiando (columnas agregadas
+// entre una revision y otra). En vez de asumir un set fijo de columnas,
+// el insert se auto-adapta: intenta con el payload completo (incluyendo
+// columnas opcionales como category/source_used/saved_to_db/error_message)
+// y, si Supabase responde que alguna columna no existe, reintenta
+// automaticamente solo con las 6 columnas base que siempre deben existir
+// (project_id, user_email, question, answer, language_mode, risk_level).
+function isMissingColumnError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  if (error.code === "PGRST204" || error.code === "42703") return true;
+  const message = (error.message ?? "").toLowerCase();
+  return message.includes("column") && (message.includes("does not exist") || message.includes("could not find"));
+}
+
+const CORE_QUERY_COLUMNS = ["project_id", "user_email", "question", "answer", "language_mode", "risk_level"] as const;
+
+function pickCoreQueryColumns(payload: Record<string, unknown>): Record<string, unknown> {
+  const core: Record<string, unknown> = {};
+  for (const key of CORE_QUERY_COLUMNS) core[key] = payload[key];
+  return core;
+}
+
+// Extrae la referencia de "Archivo interno" del bloque "Base usada para
+// esta respuesta" (ver lib/ai/mockAssistant.ts) para poblar source_used
+// con la fuente interna real usada (ej. lib/knowledge/electricalKnowledgeBase.ts).
+function extractSourceFile(sourceInfo?: string): string | null {
+  if (!sourceInfo) return null;
+  const match = sourceInfo.match(/(?:Archivo interno|Internal file):\s*(.+)/);
+  return match ? match[1].trim() : null;
+}
+
 interface SupabaseReviewRow {
   id: string;
   query_id: string;
@@ -361,23 +392,44 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
   if (isSupabaseConfigured()) {
     try {
       const supabase = getSupabaseServerClient();
-      // Insert SOLO con columnas reales de public.queries: project_id,
-      // user_email, question, answer, language_mode, risk_level. No se
-      // insertan plan_id/input_mode/requires_master_review/source_category
-      // porque esas columnas no existen en la tabla real (confirmado por
-      // el usuario) y el insert fallaria con "column does not exist".
-      const { data, error } = await supabase
-        .from("queries")
-        .insert({
-          project_id: normalizeProjectIdForDb(input.projectId),
-          user_email: input.userEmail || null,
-          question: input.question,
-          answer: JSON.stringify(input.response),
-          language_mode: normalizeLanguageModeForDb(input.language),
-          risk_level: mapRiskLevelToDb(riskLevel)
-        })
-        .select()
-        .single();
+      const languageMode = normalizeLanguageModeForDb(input.language);
+
+      // Payload completo: incluye las columnas base (siempre deben existir)
+      // mas las columnas opcionales que la tabla "puede tener"
+      // (category/source_used/saved_to_db/error_message/language). Todas
+      // con valores validos y seguros (nunca undefined) para no violar un
+      // posible constraint NOT NULL en las columnas nuevas.
+      const fullPayload: Record<string, unknown> = {
+        project_id: normalizeProjectIdForDb(input.projectId),
+        user_email: input.userEmail || null,
+        question: input.question,
+        answer: JSON.stringify(input.response),
+        language_mode: languageMode,
+        language: languageMode,
+        risk_level: mapRiskLevelToDb(riskLevel),
+        category: input.sourceCategory ?? null,
+        source_used: extractSourceFile(input.response.sourceInfo),
+        saved_to_db: true,
+        error_message: null
+      };
+
+      let { data, error } = await supabase.from("queries").insert(fullPayload).select().single();
+
+      // Si la tabla no tiene alguna de las columnas opcionales (o "language"),
+      // reintenta automaticamente solo con las 6 columnas base que siempre
+      // deben existir, en vez de fallar el guardado completo.
+      if (error && isMissingColumnError(error)) {
+        logSupabaseError(
+          "createQuery: la tabla no tiene todas las columnas opcionales; reintentando con el set base.",
+          error
+        );
+        ({ data, error } = await supabase
+          .from("queries")
+          .insert(pickCoreQueryColumns(fullPayload))
+          .select()
+          .single());
+      }
+
       if (error) throw error;
       return {
         query: mapQueryRow(data as SupabaseQueryRow, { planId: input.planId, mode: input.mode }),
