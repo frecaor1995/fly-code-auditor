@@ -1,7 +1,7 @@
 import type { AssistantResponse, Language } from "../db/types";
 import { standardWarning, verifyNecMessage, type AskAssistantInput } from "./types";
 import { searchKnowledgeEntries, listKnowledgeEntries } from "../db/repos/knowledgeBase";
-import { ELECTRICAL_KNOWLEDGE_BASE, type KnowledgeBaseEntry, type KnowledgeSourceType } from "../knowledge/electricalKnowledgeBase";
+import { findKnowledgeBaseMatch, type KnowledgeBaseEntry, type KnowledgeSourceType } from "../knowledge/electricalKnowledgeBase";
 
 type Confidence = "alto" | "medio" | "bajo";
 
@@ -106,15 +106,6 @@ function isSourceInfoQuestion(normalizedQuestion: string): boolean {
   return includesAny(normalizedQuestion, META_SOURCE_KEYWORDS);
 }
 
-// Busca una coincidencia por keywords en la base electrica interna
-// (lib/knowledge/electricalKnowledgeBase.ts). Es la primera fuente de
-// verdad para preguntas tecnicas: si hay coincidencia, se usa esa entrada;
-// si no, el caller sigue con las categorias legacy y finalmente el
-// fallback seguro de "no tengo suficiente informacion".
-function findKnowledgeBaseEntry(normalizedQuestion: string): KnowledgeBaseEntry | undefined {
-  return ELECTRICAL_KNOWLEDGE_BASE.find((entry) => includesAny(normalizedQuestion, entry.keywords));
-}
-
 function sourceTypeToConfidence(sourceType: KnowledgeSourceType): Confidence {
   if (sourceType === "regla_tecnica_general") return "medio";
   return "bajo";
@@ -122,8 +113,11 @@ function sourceTypeToConfidence(sourceType: KnowledgeSourceType): Confidence {
 
 type DetectedCategory = { source: "kb"; entry: KnowledgeBaseEntry } | { source: "legacy"; def: CategoryDef };
 
+// La busqueda en la base electrica interna (lib/knowledge/electricalKnowledgeBase.ts)
+// vive en findKnowledgeBaseMatch, compartida con lib/db/dbAdapter.ts para
+// que ambos detecten exactamente la misma categoria ante la misma pregunta.
 function detectCategory(normalizedQuestion: string): DetectedCategory | undefined {
-  const kbEntry = findKnowledgeBaseEntry(normalizedQuestion);
+  const kbEntry = findKnowledgeBaseMatch(normalizedQuestion);
   if (kbEntry) return { source: "kb", entry: kbEntry };
   const legacyDef = CATEGORY_DEFS.find((cat) => includesAny(normalizedQuestion, cat.keywords));
   if (legacyDef) return { source: "legacy", def: legacyDef };
@@ -310,7 +304,7 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
   // (hospitales/NEC 517, hospital grade receptacles, patient bed locations,
   // GFCI, AFCI, grounding, bonding, EV chargers, panel upgrade, load
   // calculation, conduit fill, box fill, Houston AHJ, TDLR, NFPA 70E, NFPA 99).
-  const kbEntry = findKnowledgeBaseEntry(q);
+  const kbEntry = findKnowledgeBaseMatch(q);
   if (kbEntry) {
     return buildResponseFromKnowledgeEntry(kbEntry, language);
   }

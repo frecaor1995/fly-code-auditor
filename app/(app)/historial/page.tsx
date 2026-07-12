@@ -1,8 +1,8 @@
-import { listQueries } from "@/lib/db/repos/queries";
+import { getQueries } from "@/lib/db/dbAdapter";
 import { QueryHistoryItem } from "@/components/history/QueryHistoryItem";
 
-export default function HistorialPage() {
-  const queries = listQueries();
+export default async function HistorialPage() {
+  const queries = await getQueries();
   return (
     <div className="space-y-4">
       <h1 className="text-xl font-bold text-fly-gold">Historial de consultas</h1>

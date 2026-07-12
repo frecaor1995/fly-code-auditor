@@ -1,13 +1,13 @@
 import Link from "next/link";
 import { listPlans } from "@/lib/db/repos/plans";
-import { listProjects } from "@/lib/db/repos/projects";
-import { getProject } from "@/lib/db/repos/projects";
+import { getProjects } from "@/lib/db/dbAdapter";
 import { PlanUploader } from "@/components/plans/PlanUploader";
 import { formatDateTime } from "@/lib/utils/dates";
 
-export default function PlanosPage() {
+export default async function PlanosPage() {
   const plans = listPlans();
-  const projects = listProjects();
+  const projects = await getProjects();
+  const projectById = new Map(projects.map((p) => [p.id, p]));
 
   return (
     <div className="space-y-6">
@@ -18,7 +18,7 @@ export default function PlanosPage() {
         <h2 className="font-semibold">Planos subidos</h2>
         {plans.length === 0 && <p className="text-sm text-fly-lightgray/60">Aun no hay planos subidos.</p>}
         {plans.map((plan) => {
-          const project = plan.projectId ? getProject(plan.projectId) : null;
+          const project = plan.projectId ? projectById.get(plan.projectId) ?? null : null;
           return (
             <Link
               key={plan.id}

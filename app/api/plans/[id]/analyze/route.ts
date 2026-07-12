@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { getPlan, setPlanAnalysisSummary } from "@/lib/db/repos/plans";
-import { createQuery } from "@/lib/db/repos/queries";
+import { createQuery } from "@/lib/db/dbAdapter";
 import { analyzePlan } from "@/lib/ai";
 import { readUploadedFile } from "@/lib/storage/localFileStorage";
 import type { Language } from "@/lib/db/types";
@@ -37,17 +37,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     imageBase64
   });
 
-  const query = createQuery({
+  const { query, persisted } = await createQuery({
     projectId: plan.projectId,
     planId: plan.id,
-    userId: user.id,
+    userEmail: user.email,
     mode: "texto",
     language,
     question,
     response
   });
 
+  if (!persisted) {
+    console.error(`[api/plans/analyze] La consulta ${query.id} se respondio pero NO se pudo guardar en Supabase.`);
+  }
+
   setPlanAnalysisSummary(plan.id, response.shortAnswer);
 
-  return NextResponse.json({ query }, { status: 201 });
+  return NextResponse.json({ query, persisted }, { status: 201 });
 }

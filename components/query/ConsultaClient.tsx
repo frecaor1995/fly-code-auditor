@@ -39,6 +39,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
   const [result, setResult] = useState<QueryRecord | null>(null);
   const [escalated, setEscalated] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   async function submitQuery(q: string, queryMode: "texto" | "voz") {
     if (!q.trim()) return;
@@ -46,6 +47,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
     setResult(null);
     setEscalated(false);
     setError(null);
+    setSaveWarning(null);
     console.log("[ConsultaClient] Pregunta enviada:", q);
     try {
       const res = await fetch("/api/queries", {
@@ -63,6 +65,16 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
 
       if (res.ok && data?.query) {
         setResult(data.query);
+        // La respuesta se genero correctamente aunque el guardado en
+        // Supabase haya fallado (ver app/api/queries/route.ts): nunca se
+        // deja la pantalla vacia, solo se avisa que no quedo guardada.
+        if (data.persisted === false) {
+          setSaveWarning(
+            uiLang === "en"
+              ? "The response was generated, but it could not be saved to the database."
+              : "La respuesta fue generada, pero no pudo guardarse en la base de datos."
+          );
+        }
         return;
       }
 
@@ -160,6 +172,12 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
       {error && (
         <div className="rounded-lg border border-risk-critical bg-risk-critical/10 p-3 text-sm text-risk-critical">
           {error}
+        </div>
+      )}
+
+      {saveWarning && (
+        <div className="rounded-lg border border-fly-gold bg-fly-gold/10 p-3 text-sm text-fly-gold">
+          ⚠ {saveWarning}
         </div>
       )}
 

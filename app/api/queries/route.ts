@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { createQuery, listQueries } from "@/lib/db/repos/queries";
+import { getQueries, createQuery, extractSourceCategory } from "@/lib/db/dbAdapter";
 import { askAssistant } from "@/lib/ai";
-import type { AssistantResponse, Language, QueryMode, QueryRecord } from "@/lib/db/types";
+import type { Language, QueryMode } from "@/lib/db/types";
 
 export async function GET() {
   const user = getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
-  return NextResponse.json({ queries: listQueries() });
+  return NextResponse.json({ queries: await getQueries() });
 }
 
 export async function POST(req: NextRequest) {
@@ -29,9 +29,10 @@ export async function POST(req: NextRequest) {
   const mode = (body?.mode as QueryMode) ?? "texto";
   const projectId = (body?.projectId as string | null) ?? null;
 
-  // La generacion de la respuesta (motor mock local, sin red ni fs) es la
-  // parte critica y no deberia fallar nunca. Si falla, es un error real.
-  let response: AssistantResponse;
+  // La generacion de la respuesta (motor mock + base de conocimiento
+  // electrica, sin red ni fs) es la parte critica y no deberia fallar
+  // nunca. Si falla, es un error real y no hay nada util que mostrar.
+  let response;
   try {
     response = await askAssistant({ question, language });
     console.log("[api/queries] Respuesta generada (motor local):", response.shortAnswer);
@@ -46,32 +47,30 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Guardar el historial es "best effort": en produccion (Vercel) el
-  // filesystem puede ser de solo lectura, y jsonStore ya degrada a memoria
-  // en ese caso sin lanzar. Este try/catch es una segunda red de seguridad:
-  // si por cualquier motivo createQuery fallara igual, el usuario debe ver
-  // la respuesta que ya se genero en vez de un error generico.
-  let query: QueryRecord;
-  try {
-    query = createQuery({ projectId, planId: null, userId: user.id, mode, language, question, response });
-  } catch (error) {
-    console.error("[api/queries] No se pudo guardar la consulta; se responde sin persistir:", error);
-    query = {
-      id: `local-${Date.now()}`,
-      projectId,
-      planId: null,
-      userId: user.id,
-      mode,
-      language,
-      question,
-      response,
-      riskLevel: response.riskLevel,
-      requiresMasterReview: response.riskLevel === "alto" || response.riskLevel === "critico",
-      createdAt: new Date().toISOString()
-    };
+  // Guardar en Supabase es "best effort": lib/db/dbAdapter.ts ya garantiza
+  // que createQuery nunca lanza (si Supabase falla, registra el error en
+  // los logs del servidor y devuelve la misma respuesta sin persistir). El
+  // usuario siempre ve la respuesta generada, se haya podido guardar o no.
+  const { query, persisted } = await createQuery({
+    projectId,
+    planId: null,
+    userEmail: user.email,
+    mode,
+    language,
+    question,
+    response,
+    sourceCategory: extractSourceCategory(response.sourceInfo)
+  });
+
+  if (!persisted) {
+    console.error(
+      `[api/queries] La consulta ${query.id} se respondio pero NO se pudo guardar en Supabase. Revisar SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY y los logs de [dbAdapter] arriba.`
+    );
   }
 
   // "answer" se incluye plano ademas de "query" para cualquier consumidor
   // que solo necesite el texto de la respuesta sin el objeto completo.
-  return NextResponse.json({ query, answer: response.shortAnswer }, { status: 201 });
+  // "persisted" le dice al cliente si el guardado en Supabase funciono,
+  // para poder avisar sin dejar la pantalla vacia.
+  return NextResponse.json({ query, answer: response.shortAnswer, persisted }, { status: 201 });
 }

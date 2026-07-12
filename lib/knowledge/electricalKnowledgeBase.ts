@@ -582,3 +582,20 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     warningEn: "Preliminary internal guide based on NFPA 99 and general practice; it does not replace the full official text of NFPA 99 or NEC Article 517."
   }
 ];
+
+export function normalizeForMatch(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase();
+}
+
+// Busqueda por keywords compartida: usada tanto por el generador mock
+// (lib/ai/mockAssistant.ts) como por lib/db/dbAdapter.ts, para que ambos
+// encuentren exactamente la misma categoria ante la misma pregunta.
+export function findKnowledgeBaseMatch(question: string): KnowledgeBaseEntry | undefined {
+  const normalizedQuestion = normalizeForMatch(question);
+  return ELECTRICAL_KNOWLEDGE_BASE.find((entry) =>
+    entry.keywords.some((keyword) => normalizedQuestion.includes(normalizeForMatch(keyword)))
+  );
+}

@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { listQueries } from "@/lib/db/repos/queries";
+import { getQueries } from "@/lib/db/dbAdapter";
 import { RiskBadge } from "@/components/ui/RiskBadge";
 import { formatDateTime } from "@/lib/utils/dates";
 
-export default function ReportesPage() {
-  const queries = listQueries();
+export default async function ReportesPage() {
+  const queries = await getQueries();
 
   return (
     <div className="space-y-4">

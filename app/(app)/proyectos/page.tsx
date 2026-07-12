@@ -1,9 +1,9 @@
-import { listProjects } from "@/lib/db/repos/projects";
+import { getProjects } from "@/lib/db/dbAdapter";
 import { ProjectCard } from "@/components/projects/ProjectCard";
 import { NewProjectForm } from "@/components/projects/NewProjectForm";
 
-export default function ProyectosPage() {
-  const projects = listProjects();
+export default async function ProyectosPage() {
+  const projects = await getProjects();
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-bold text-fly-gold">Proyectos</h1>

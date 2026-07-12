@@ -1,16 +1,16 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getProject } from "@/lib/db/repos/projects";
-import { listQueriesByProject } from "@/lib/db/repos/queries";
+import { getProjects, getQueries } from "@/lib/db/dbAdapter";
 import { listPlansByProject } from "@/lib/db/repos/plans";
 import { QueryHistoryItem } from "@/components/history/QueryHistoryItem";
 import { formatDateTime } from "@/lib/utils/dates";
 
-export default function ProjectDetailPage({ params }: { params: { id: string } }) {
-  const project = getProject(params.id);
+export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
+  const projects = await getProjects();
+  const project = projects.find((p) => p.id === params.id) ?? null;
   if (!project) notFound();
 
-  const queries = listQueriesByProject(project.id);
+  const queries = (await getQueries()).filter((q) => q.projectId === project.id);
   const plans = listPlansByProject(project.id);
 
   const checklist = Array.from(new Set(queries.flatMap((q) => q.response.checklist)));

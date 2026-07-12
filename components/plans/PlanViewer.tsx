@@ -23,11 +23,13 @@ export function PlanViewer({ plan, initialQueries }: { plan: PlanRecord; initial
   const [loading, setLoading] = useState(false);
   const [queries, setQueries] = useState<QueryRecord[]>(initialQueries);
   const [error, setError] = useState<string | null>(null);
+  const [saveWarning, setSaveWarning] = useState<string | null>(null);
 
   async function askAboutPlan(q: string) {
     if (!q.trim()) return;
     setLoading(true);
     setError(null);
+    setSaveWarning(null);
     try {
       const res = await fetch(`/api/plans/${plan.id}/analyze`, {
         method: "POST",
@@ -46,6 +48,13 @@ export function PlanViewer({ plan, initialQueries }: { plan: PlanRecord; initial
       }
       setQueries((prev) => [data.query, ...prev]);
       setQuestion("");
+      if (data.persisted === false) {
+        setSaveWarning(
+          uiLang === "en"
+            ? "The response was generated, but it could not be saved to the database."
+            : "La respuesta fue generada, pero no pudo guardarse en la base de datos."
+        );
+      }
     } catch {
       setError(
         uiLang === "en"
@@ -98,6 +107,11 @@ export function PlanViewer({ plan, initialQueries }: { plan: PlanRecord; initial
           {error && (
             <div className="rounded-lg border border-risk-critical bg-risk-critical/10 p-3 text-sm text-risk-critical">
               {error}
+            </div>
+          )}
+          {saveWarning && (
+            <div className="rounded-lg border border-fly-gold bg-fly-gold/10 p-3 text-sm text-fly-gold">
+              ⚠ {saveWarning}
             </div>
           )}
         </div>

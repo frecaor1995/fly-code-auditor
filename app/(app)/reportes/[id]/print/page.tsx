@@ -1,17 +1,18 @@
 import { notFound } from "next/navigation";
-import { getQuery } from "@/lib/db/repos/queries";
-import { getProject } from "@/lib/db/repos/projects";
-import { getUserById } from "@/lib/db/repos/users";
+import { getQueryById, getProjects } from "@/lib/db/dbAdapter";
+import { getUserById, getUserByEmail } from "@/lib/db/repos/users";
 import { getReviewByQuery } from "@/lib/db/repos/reviews";
 import { buildQuerySummaryText } from "@/lib/utils/exportSummary";
 import { PrintButton } from "@/components/reports/PrintButton";
 
-export default function ReportPrintPage({ params }: { params: { id: string } }) {
-  const query = getQuery(params.id);
+export default async function ReportPrintPage({ params }: { params: { id: string } }) {
+  const query = await getQueryById(params.id);
   if (!query) notFound();
 
-  const project = query.projectId ? getProject(query.projectId) : null;
-  const user = getUserById(query.userId);
+  const project = query.projectId ? (await getProjects()).find((p) => p.id === query.projectId) ?? null : null;
+  // query.userId trae el email cuando la consulta viene de Supabase, o el id
+  // local (ej. "u-admin") cuando viene del fallback JSON: se prueban ambos.
+  const user = getUserByEmail(query.userId) ?? getUserById(query.userId);
   const review = getReviewByQuery(query.id);
 
   const summary = buildQuerySummaryText({ query, project, user, review });

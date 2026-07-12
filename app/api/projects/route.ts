@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { listProjects, createProject } from "@/lib/db/repos/projects";
+import { getProjects, createProject } from "@/lib/db/dbAdapter";
 
 export async function GET() {
   const user = getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
-  return NextResponse.json({ projects: listProjects() });
+  return NextResponse.json({ projects: await getProjects() });
 }
 
 export async function POST(req: NextRequest) {
@@ -21,12 +21,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Nombre y cliente son requeridos." }, { status: 400 });
   }
 
-  const project = createProject({
-    name: body.name,
-    client: body.client,
-    address: body.address ?? "",
-    createdBy: user.id
-  });
-
-  return NextResponse.json({ project }, { status: 201 });
+  try {
+    const project = await createProject({
+      name: body.name,
+      client: body.client,
+      address: body.address ?? "",
+      createdBy: user.id
+    });
+    return NextResponse.json({ project }, { status: 201 });
+  } catch (error) {
+    console.error("[api/projects] Error guardando el proyecto:", error);
+    return NextResponse.json({ error: "No se pudo guardar el proyecto en la base de datos. Intenta de nuevo." }, { status: 500 });
+  }
 }

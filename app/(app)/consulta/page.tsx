@@ -1,7 +1,7 @@
-import { listProjects } from "@/lib/db/repos/projects";
+import { getProjects } from "@/lib/db/dbAdapter";
 import { ConsultaClient } from "@/components/query/ConsultaClient";
 
-export default function ConsultaPage() {
-  const projects = listProjects();
+export default async function ConsultaPage() {
+  const projects = await getProjects();
   return <ConsultaClient projects={projects} />;
 }

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { setReviewDecision } from "@/lib/db/repos/reviews";
+import { createReview } from "@/lib/db/dbAdapter";
 
 export async function POST(req: NextRequest) {
   const user = getCurrentUser();
@@ -19,6 +19,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "queryId y status son requeridos." }, { status: 400 });
   }
 
-  const review = setReviewDecision(queryId, { status, comment, reviewedBy: user.id });
-  return NextResponse.json({ review });
+  try {
+    const review = await createReview({ queryId, reviewedBy: user.id, status, comments: comment });
+    return NextResponse.json({ review });
+  } catch (error) {
+    console.error("[api/reviews] Error guardando la revision:", error);
+    return NextResponse.json({ error: "No se pudo guardar la revision en la base de datos." }, { status: 500 });
+  }
 }

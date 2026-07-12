@@ -1,15 +1,15 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
-import { listQueriesRequiringReview } from "@/lib/db/repos/queries";
+import { getQueries } from "@/lib/db/dbAdapter";
 import { getReviewByQuery } from "@/lib/db/repos/reviews";
 import { ReviewQueueItem } from "@/components/review/ReviewQueueItem";
 
-export default function RevisionMasterPage() {
+export default async function RevisionMasterPage() {
   const user = getCurrentUser();
   if (!user || !hasPermission(user.role, "review.decide")) redirect("/dashboard");
 
-  const queries = listQueriesRequiringReview();
+  const queries = (await getQueries()).filter((q) => q.requiresMasterReview);
 
   return (
     <div className="space-y-4">

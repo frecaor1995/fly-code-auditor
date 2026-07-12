@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import { getPlan } from "@/lib/db/repos/plans";
-import { listQueries } from "@/lib/db/repos/queries";
+import { getQueries } from "@/lib/db/dbAdapter";
 import { PlanViewer } from "@/components/plans/PlanViewer";
 
-export default function PlanDetailPage({ params }: { params: { id: string } }) {
+export default async function PlanDetailPage({ params }: { params: { id: string } }) {
   const plan = getPlan(params.id);
   if (!plan) notFound();
 
-  const relatedQueries = listQueries().filter((q) => q.planId === plan.id);
+  const relatedQueries = (await getQueries()).filter((q) => q.planId === plan.id);
 
   return (
     <div className="space-y-4">

@@ -1,15 +1,15 @@
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
-import { listQueries, listQueriesRequiringReview } from "@/lib/db/repos/queries";
-import { listProjects } from "@/lib/db/repos/projects";
+import { getProjects, getQueries } from "@/lib/db/dbAdapter";
 import { QueryHistoryItem } from "@/components/history/QueryHistoryItem";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
   const user = getCurrentUser()!;
-  const queries = listQueries().slice(0, 5);
-  const pendingReview = listQueriesRequiringReview();
-  const projects = listProjects();
+  const allQueries = await getQueries();
+  const queries = allQueries.slice(0, 5);
+  const pendingReview = allQueries.filter((q) => q.requiresMasterReview);
+  const projects = await getProjects();
 
   return (
     <div className="space-y-6">
@@ -27,7 +27,7 @@ export default function DashboardPage() {
 
       <div className="grid md:grid-cols-3 gap-3">
         <StatCard label="Proyectos activos" value={projects.filter((p) => p.status === "activo").length} />
-        <StatCard label="Consultas totales" value={listQueries().length} />
+        <StatCard label="Consultas totales" value={allQueries.length} />
         <StatCard label="Pendientes de revision del Master" value={pendingReview.length} />
       </div>
 
