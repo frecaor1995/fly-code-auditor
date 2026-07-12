@@ -86,36 +86,126 @@ function mapProjectRow(row: SupabaseProjectRow): Project {
   };
 }
 
+// Columnas REALES de public.queries en Supabase (confirmadas por el
+// usuario): id, project_id, user_email, question, answer, language_mode,
+// risk_level, created_at. plan_id / input_mode / requires_master_review /
+// source_category NO existen en la tabla real: son opcionales aqui y se
+// leen solo si algun dia se agregan esas columnas; hasta entonces siempre
+// llegan undefined y se resuelven con los valores por defecto de abajo.
 interface SupabaseQueryRow {
   id: string;
   project_id: string | null;
-  plan_id: string | null;
   user_email: string | null;
   question: string;
-  answer: AssistantResponse;
+  answer: string | AssistantResponse;
   language_mode: string | null;
   risk_level: string | null;
-  source_category: string | null;
-  input_mode: string | null;
-  requires_master_review: boolean | null;
   created_at: string;
+  plan_id?: string | null;
+  input_mode?: string | null;
+  requires_master_review?: boolean | null;
 }
 
-function mapQueryRow(row: SupabaseQueryRow): QueryRecord {
-  const riskLevel = (row.risk_level as RiskLevel) ?? "medio";
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// Normaliza project_id antes de insertar: cualquier valor vacio, los
+// placeholders "general"/"sin proyecto", o cualquier string que no tenga
+// forma de UUID, se guarda como null en vez de romper el insert con un
+// error de tipo en Postgres.
+function normalizeProjectIdForDb(projectId: string | null | undefined): string | null {
+  if (!projectId) return null;
+  const trimmed = projectId.trim();
+  if (!trimmed) return null;
+  const lowered = trimmed.toLowerCase();
+  if (lowered === "general" || lowered === "sin proyecto" || lowered === "null" || lowered === "undefined") return null;
+  return UUID_RE.test(trimmed) ? trimmed : null;
+}
+
+// La columna risk_level de Supabase solo admite low/medium/high (confirmado
+// por el usuario). "alto" y "critico" del motor mock se guardan ambos como
+// "high": el nivel de riesgo real y completo sigue disponible dentro de
+// "answer" (la respuesta completa), asi que no se pierde informacion, solo
+// se colapsa a 3 niveles para esta columna especifica.
+function mapRiskLevelToDb(riskLevel: RiskLevel): "low" | "medium" | "high" {
+  if (riskLevel === "bajo") return "low";
+  if (riskLevel === "medio") return "medium";
+  return "high";
+}
+
+function mapRiskLevelFromDb(dbValue: string | null | undefined): RiskLevel {
+  if (dbValue === "low") return "bajo";
+  if (dbValue === "high") return "alto";
+  return "medio";
+}
+
+function normalizeLanguageModeForDb(language: Language): "es" | "en" | "bilingual" {
+  if (language === "es" || language === "en" || language === "bilingual") return language;
+  return "bilingual";
+}
+
+// "answer" se guarda como texto (JSON.stringify) porque la columna real es
+// text, no jsonb. Al leer, puede venir como string (columna text) o ya
+// como objeto (si en algun momento la columna fuera jsonb); se manejan
+// ambos casos sin romper el render.
+function parseAnswer(raw: string | AssistantResponse | null | undefined): AssistantResponse {
+  if (raw && typeof raw === "object") return raw;
+  if (typeof raw === "string") {
+    try {
+      return JSON.parse(raw) as AssistantResponse;
+    } catch {
+      return {
+        shortAnswer: raw,
+        riskLevel: "medio",
+        codeReference: "",
+        checklist: [],
+        missingQuestions: [],
+        recommendation: "",
+        warning: ""
+      };
+    }
+  }
+  return {
+    shortAnswer: "",
+    riskLevel: "medio",
+    codeReference: "",
+    checklist: [],
+    missingQuestions: [],
+    recommendation: "",
+    warning: ""
+  };
+}
+
+function mapQueryRow(row: SupabaseQueryRow, overrides?: { planId?: string | null; mode?: QueryMode }): QueryRecord {
+  const riskLevel = mapRiskLevelFromDb(row.risk_level);
   return {
     id: row.id,
     projectId: row.project_id,
-    planId: row.plan_id,
+    // plan_id no existe en la tabla real: se usa el valor conocido en el
+    // momento del insert (overrides) si esta disponible; si no, null.
+    planId: overrides?.planId ?? row.plan_id ?? null,
     userId: row.user_email ?? "",
-    mode: (row.input_mode as QueryMode) ?? "texto",
+    mode: overrides?.mode ?? (row.input_mode as QueryMode) ?? "texto",
     language: (row.language_mode as Language) ?? "bilingual",
     question: row.question,
-    response: row.answer,
+    response: parseAnswer(row.answer),
     riskLevel,
-    requiresMasterReview: Boolean(row.requires_master_review) || riskLevel === "alto" || riskLevel === "critico",
+    requiresMasterReview: Boolean(row.requires_master_review) || riskLevel === "alto",
     createdAt: row.created_at
   };
+}
+
+// Registra el detalle real del error de Postgres/PostgREST (code, message,
+// details, hint) en vez de volcar el objeto completo, para que los logs de
+// Vercel muestren exactamente por que fallo un insert (columna inexistente,
+// violacion de check constraint, tipo invalido, etc.).
+function logSupabaseError(context: string, error: unknown): void {
+  const pgError = error as { code?: string; message?: string; details?: string; hint?: string };
+  console.error(`[dbAdapter] ${context}`, {
+    code: pgError?.code,
+    message: pgError?.message,
+    details: pgError?.details,
+    hint: pgError?.hint
+  });
 }
 
 interface SupabaseReviewRow {
@@ -191,7 +281,7 @@ export async function getProjects(): Promise<Project[]> {
       if (error) throw error;
       return (data as SupabaseProjectRow[]).map(mapProjectRow);
     } catch (error) {
-      console.error("[dbAdapter] getProjects: fallo la lectura en Supabase, usando datos locales.", error);
+      logSupabaseError("getProjects: fallo la lectura en Supabase, usando datos locales.", error);
       return listLocalProjects();
     }
   }
@@ -219,7 +309,7 @@ export async function createProject(input: CreateProjectInput): Promise<Project>
       .select()
       .single();
     if (error) {
-      console.error("[dbAdapter] createProject: fallo la escritura en Supabase.", error);
+      logSupabaseError("createProject: fallo la escritura en Supabase.", error);
       throw error;
     }
     return mapProjectRow(data as SupabaseProjectRow);
@@ -238,9 +328,9 @@ export async function getQueries(): Promise<QueryRecord[]> {
         .select("*")
         .order("created_at", { ascending: false });
       if (error) throw error;
-      return (data as SupabaseQueryRow[]).map(mapQueryRow);
+      return (data as SupabaseQueryRow[]).map((row) => mapQueryRow(row));
     } catch (error) {
-      console.error("[dbAdapter] getQueries: fallo la lectura en Supabase, usando datos locales.", error);
+      logSupabaseError("getQueries: fallo la lectura en Supabase, usando datos locales.", error);
       return listLocalQueries();
     }
   }
@@ -262,7 +352,8 @@ export interface CreateQueryInput {
 // respuesta del asistente ya se genero de forma independiente (ver
 // app/api/queries/route.ts) y siempre debe llegar al usuario. Si Supabase
 // falla, se devuelve un QueryRecord "en memoria" (no persistido) con esa
-// misma respuesta, y el error queda registrado en los logs del servidor.
+// misma respuesta, y el error (code/message/details/hint) queda registrado
+// en los logs del servidor via logSupabaseError.
 export async function createQuery(input: CreateQueryInput): Promise<{ query: QueryRecord; persisted: boolean }> {
   const riskLevel = input.response.riskLevel;
   const requiresMasterReview = riskLevel === "alto" || riskLevel === "critico";
@@ -270,29 +361,30 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
   if (isSupabaseConfigured()) {
     try {
       const supabase = getSupabaseServerClient();
+      // Insert SOLO con columnas reales de public.queries: project_id,
+      // user_email, question, answer, language_mode, risk_level. No se
+      // insertan plan_id/input_mode/requires_master_review/source_category
+      // porque esas columnas no existen en la tabla real (confirmado por
+      // el usuario) y el insert fallaria con "column does not exist".
       const { data, error } = await supabase
         .from("queries")
         .insert({
-          project_id: input.projectId,
-          plan_id: input.planId,
-          user_email: input.userEmail,
+          project_id: normalizeProjectIdForDb(input.projectId),
+          user_email: input.userEmail || null,
           question: input.question,
-          answer: input.response,
-          language_mode: input.language,
-          risk_level: riskLevel,
-          source_category: input.sourceCategory ?? null,
-          input_mode: input.mode,
-          requires_master_review: requiresMasterReview
+          answer: JSON.stringify(input.response),
+          language_mode: normalizeLanguageModeForDb(input.language),
+          risk_level: mapRiskLevelToDb(riskLevel)
         })
         .select()
         .single();
       if (error) throw error;
-      return { query: mapQueryRow(data as SupabaseQueryRow), persisted: true };
+      return {
+        query: mapQueryRow(data as SupabaseQueryRow, { planId: input.planId, mode: input.mode }),
+        persisted: true
+      };
     } catch (error) {
-      console.error(
-        "[dbAdapter] createQuery: fallo el guardado en Supabase; se devuelve la respuesta sin persistir.",
-        error
-      );
+      logSupabaseError("createQuery: fallo el guardado en Supabase; se devuelve la respuesta sin persistir.", error);
       return {
         query: {
           id: `local-${Date.now()}`,
@@ -332,7 +424,7 @@ export async function getQueryById(id: string): Promise<QueryRecord | null> {
       if (error) throw error;
       return data ? mapQueryRow(data as SupabaseQueryRow) : null;
     } catch (error) {
-      console.error("[dbAdapter] getQueryById: fallo la lectura en Supabase, usando datos locales.", error);
+      logSupabaseError("getQueryById: fallo la lectura en Supabase, usando datos locales.", error);
       return getLocalQuery(id);
     }
   }
@@ -342,22 +434,23 @@ export async function getQueryById(id: string): Promise<QueryRecord | null> {
 // Extra sobre la lista de funciones pedida: necesaria para que "Escalar al
 // Master" siga funcionando sobre consultas guardadas en Supabase (ver
 // app/api/queries/[id]/route.ts).
+//
+// La tabla real public.queries NO tiene columna requires_master_review
+// (confirmado por el usuario), asi que no hay donde persistir un escalado
+// manual independiente del risk_level. En vez de intentar un UPDATE que
+// fallaria siempre con "column does not exist", se devuelve la consulta
+// tal cual esta: si su risk_level es "alto" ya aparece marcada para
+// revision del Master (mapQueryRow la deriva del risk_level); si no, el
+// escalado manual no puede persistir hasta que se agregue esa columna.
 export async function escalateQuery(id: string): Promise<QueryRecord | null> {
   if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseServerClient();
-      const { data, error } = await supabase
-        .from("queries")
-        .update({ requires_master_review: true })
-        .eq("id", id)
-        .select()
-        .maybeSingle();
-      if (error) throw error;
-      return data ? mapQueryRow(data as SupabaseQueryRow) : null;
-    } catch (error) {
-      console.error("[dbAdapter] escalateQuery: fallo la escritura en Supabase.", error);
-      throw error;
+    const query = await getQueryById(id);
+    if (query) {
+      console.error(
+        `[dbAdapter] escalateQuery: la tabla queries no tiene columna requires_master_review; el escalado manual de ${id} no se pudo persistir en Supabase.`
+      );
     }
+    return query;
   }
   return escalateLocalQuery(id);
 }
@@ -385,7 +478,7 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewReco
       .select()
       .single();
     if (error) {
-      console.error("[dbAdapter] createReview: fallo la escritura en Supabase.", error);
+      logSupabaseError("createReview: fallo la escritura en Supabase.", error);
       throw error;
     }
     return mapReviewRow(data as SupabaseReviewRow);
@@ -416,7 +509,7 @@ export async function getKnowledgeEntries(): Promise<KnowledgeBaseEntry[]> {
       if (error) throw error;
       if (data && data.length > 0) return (data as SupabaseKnowledgeRow[]).map(mapKnowledgeRow);
     } catch (error) {
-      console.error("[dbAdapter] getKnowledgeEntries: fallo Supabase, usando base local.", error);
+      logSupabaseError("getKnowledgeEntries: fallo Supabase, usando base local.", error);
     }
   }
   return ELECTRICAL_KNOWLEDGE_BASE;
@@ -436,7 +529,7 @@ export async function findKnowledgeByQuestion(question: string): Promise<Knowled
         if (match) return match;
       }
     } catch (error) {
-      console.error("[dbAdapter] findKnowledgeByQuestion: fallo Supabase, usando base local.", error);
+      logSupabaseError("findKnowledgeByQuestion: fallo Supabase, usando base local.", error);
     }
   }
   return findKnowledgeBaseMatch(question);

@@ -103,6 +103,103 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "This is a preliminary internal guide from Fly Electric Solutions LLC based on NEC 2023, NFPA 99, and general practice; it does not replace the full official text of NEC Article 517 or NFPA 99. Health care facility work requires mandatory verification with the Master Electrician, the engineer of record, and the AHJ before proceeding."
   },
   {
+    id: "kb-healthcare-lighting",
+    category: "Healthcare / Iluminacion hospitalaria (NEC 517)",
+    keywords: [
+      "iluminacion hospitalaria",
+      "iluminacion en hospitales",
+      "iluminacion de hospital",
+      "luces en hospitales",
+      "luminarias en hospitales",
+      "hospital lighting",
+      "healthcare lighting",
+      "patient care lighting",
+      "iluminacion de emergencia",
+      "emergency lighting",
+      "egress lighting",
+      "iluminacion de salida"
+    ],
+    codeReference: "NEC 2023 Article 517 (Health Care Facilities, iluminacion en patient care areas) y NFPA 99 (life safety branch)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "La iluminacion en areas de atencion al paciente se divide normalmente segun el sistema electrico esencial: iluminacion general (ramal normal o critico, segun el circuito) e iluminacion de seguridad de vida (life safety branch), que cubre salidas, rutas de egreso y senalizacion de emergencia y debe permanecer operativa incluso si falla el servicio normal. Ademas de la clasificacion por ramal, se debe considerar iluminacion de tarea cerca de cada patient bed location (para exploracion clinica) y, en areas de mayor riesgo (Category 1 segun NFPA 99, como quirofanos), niveles y respaldo de iluminacion mas exigentes que en areas de cuidado general (Category 2). Esta es una guia preliminar: el circuito, ramal y nivel de iluminacion exactos siempre deben confirmarse contra el plano electrico (hoja de iluminacion / E1.1), el panel schedule, el Master Electrician y el AHJ.",
+    shortAnswerEn:
+      "Lighting in patient care areas is typically split according to the essential electrical system: general lighting (normal or critical branch, depending on the circuit) and life safety branch lighting, which covers exits, egress paths, and emergency signage and must stay operational even if normal power fails. Beyond branch classification, task lighting near each patient bed location (for clinical examination) should be considered, and higher-acuity areas (Category 1 per NFPA 99, such as operating rooms) typically require more demanding lighting levels and backup than general care areas (Category 2). This is a preliminary guide only: the exact circuit, branch, and lighting level must always be confirmed against the electrical drawings (lighting sheet / E1.1), the panel schedule, the Master Electrician, and the AHJ.",
+    riskLevel: "alto",
+    checklistEs: [
+      "Confirmar en el plano si la luminaria esta en el ramal normal, critico o de life safety",
+      "Verificar iluminacion de salidas y rutas de egreso (life safety branch)",
+      "Confirmar iluminacion de tarea cerca de cada patient bed location",
+      "Confirmar categoria de riesgo del espacio (Category 1 / Category 2 segun NFPA 99)",
+      "Verificar respaldo de emergencia (generador/UPS) para la iluminacion critica"
+    ],
+    checklistEn: [
+      "Confirm on the drawings whether the fixture is on the normal, critical, or life safety branch",
+      "Verify exit and egress path lighting (life safety branch)",
+      "Confirm task lighting near each patient bed location",
+      "Confirm the space's risk category (Category 1 / Category 2 per NFPA 99)",
+      "Verify emergency backup (generator/UPS) for critical lighting"
+    ],
+    missingQuestionsEs: [
+      "Hoja de iluminacion del plano (ej. E1.1) del area de atencion al paciente",
+      "Categoria de riesgo del espacio (Category 1, 2, 3 o 4 segun NFPA 99)",
+      "Si el circuito de iluminacion esta en el ramal normal, critico o life safety"
+    ],
+    missingQuestionsEn: [
+      "Lighting drawing sheet (e.g. E1.1) for the patient care area",
+      "Risk category of the space (Category 1, 2, 3, or 4 per NFPA 99)",
+      "Whether the lighting circuit is on the normal, critical, or life safety branch"
+    ],
+    recommendationEs:
+      "Trabajo especializado de alto riesgo (seguridad de vida). Escalar al Master Electrician antes de disenar o instalar iluminacion en un area de atencion al paciente, y confirmar el ramal exacto con el ingeniero de registro y el AHJ.",
+    recommendationEn:
+      "Specialized, high-risk work (life safety). Escalate to the Master Electrician before designing or installing lighting in a patient care area, and confirm the exact branch with the engineer of record and the AHJ.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 2023 y NFPA 99; no reemplaza el texto oficial completo del NEC Article 517 ni NFPA 99. Verificar con el Master Electrician, el ingeniero de registro y el AHJ antes de proceder.",
+    warningEn:
+      "Preliminary internal guide based on NEC 2023 and NFPA 99; it does not replace the full official text of NEC Article 517 or NFPA 99. Verify with the Master Electrician, the engineer of record, and the AHJ before proceeding."
+  },
+  {
+    id: "kb-general-lighting",
+    category: "Iluminacion general (no hospitalaria)",
+    keywords: [
+      "iluminacion",
+      "iluminacion general",
+      "luminaria",
+      "luminarias",
+      "luces",
+      "lighting",
+      "light fixture",
+      "punto de luz",
+      "circuito de iluminacion"
+    ],
+    codeReference: "NEC Article 210 (branch circuits) y Article 410 (luminaires); referencia general",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "Para un circuito de iluminacion general (residencial o comercial, sin contexto hospitalario) se debe confirmar: el circuito dedicado o compartido que alimenta la luminaria, el control (switch sencillo, 3 vias, dimmer), si la luminaria es para interior, exterior o area humeda/mojada (listado adecuado), y la carga total del circuito para no exceder el breaker. Espacios humedos, exteriores o cerca de agua requieren luminarias listadas para esa ubicacion.",
+    shortAnswerEn:
+      "For a general lighting circuit (residential or commercial, no health care context) confirm: whether the fixture is on a dedicated or shared circuit, the control type (single-pole switch, 3-way, dimmer), whether the fixture is rated for interior, exterior, or damp/wet locations, and the circuit's total load so the breaker isn't exceeded. Damp, exterior, or near-water locations require fixtures listed for that location.",
+    riskLevel: "bajo",
+    checklistEs: [
+      "Confirmar tipo de control (switch sencillo, 3 vias, dimmer)",
+      "Confirmar si la ubicacion es interior, exterior o humeda/mojada",
+      "Verificar listado de la luminaria para esa ubicacion",
+      "Confirmar carga total del circuito de iluminacion"
+    ],
+    checklistEn: [
+      "Confirm control type (single-pole switch, 3-way, dimmer)",
+      "Confirm whether the location is interior, exterior, or damp/wet",
+      "Verify the fixture's listing for that location",
+      "Confirm the lighting circuit's total load"
+    ],
+    missingQuestionsEs: ["Ubicacion exacta de la luminaria", "Tipo de control deseado"],
+    missingQuestionsEn: ["Exact fixture location", "Desired control type"],
+    recommendationEs: "Confirmar el listado de la luminaria para la ubicacion exacta antes de instalar, especialmente en exteriores o areas humedas.",
+    recommendationEn: "Confirm the fixture's listing for the exact location before installing, especially outdoors or in damp areas.",
+    warningEs: "Guia general interna; verificar el articulo NEC exacto y la aprobacion del Master Electrician antes de instalar.",
+    warningEn: "General internal guide; verify the exact NEC article and Master Electrician approval before installing."
+  },
+  {
     id: "kb-hospital-grade-receptacles",
     category: "Hospital grade receptacles",
     keywords: [
@@ -590,11 +687,72 @@ export function normalizeForMatch(text: string): string {
     .toLowerCase();
 }
 
+function mentionsAny(normalizedQuestion: string, terms: string[]): boolean {
+  return terms.some((term) => normalizedQuestion.includes(normalizeForMatch(term)));
+}
+
+// Terminos de iluminacion vs. receptaculos/tomas. Se resuelven ANTES que el
+// escaneo generico de keywords por array: sin esta guarda, una pregunta
+// como "que iluminacion se usa en hospitales" coincide con la keyword
+// generica "hospital" de kb-healthcare-517 (receptaculos) y responde sobre
+// tomas en vez de luminarias, que es exactamente el bug reportado.
+const LIGHTING_TERMS = [
+  "iluminacion",
+  "iluminacion general",
+  "iluminacion hospitalaria",
+  "luminaria",
+  "luminarias",
+  "luces",
+  "lighting",
+  "light fixture",
+  "punto de luz"
+];
+
+const RECEPTACLE_TERMS = [
+  "tomas",
+  "toma electrica",
+  "receptaculo",
+  "receptaculos",
+  "receptacle",
+  "receptacles",
+  "outlet",
+  "outlets",
+  "patient bed location",
+  "patient bed"
+];
+
+const HOSPITAL_CONTEXT_TERMS = [
+  "hospital",
+  "hospitales",
+  "healthcare",
+  "health care",
+  "nec 517",
+  "517",
+  "nfpa 99",
+  "patient care area",
+  "area de atencion al paciente"
+];
+
 // Busqueda por keywords compartida: usada tanto por el generador mock
 // (lib/ai/mockAssistant.ts) como por lib/db/dbAdapter.ts, para que ambos
 // encuentren exactamente la misma categoria ante la misma pregunta.
 export function findKnowledgeBaseMatch(question: string): KnowledgeBaseEntry | undefined {
   const normalizedQuestion = normalizeForMatch(question);
+
+  const isLighting = mentionsAny(normalizedQuestion, LIGHTING_TERMS);
+  const isReceptacle = mentionsAny(normalizedQuestion, RECEPTACLE_TERMS);
+
+  // Si la pregunta es de iluminacion y NO menciona tomas/receptaculos,
+  // nunca debe responder sobre receptaculos: se resuelve directo a la
+  // entrada de iluminacion (hospitalaria o general) sin pasar por el
+  // escaneo generico de abajo.
+  if (isLighting && !isReceptacle) {
+    const isHospitalContext = mentionsAny(normalizedQuestion, HOSPITAL_CONTEXT_TERMS);
+    const lightingId = isHospitalContext ? "kb-healthcare-lighting" : "kb-general-lighting";
+    const lightingEntry = ELECTRICAL_KNOWLEDGE_BASE.find((entry) => entry.id === lightingId);
+    if (lightingEntry) return lightingEntry;
+  }
+
   return ELECTRICAL_KNOWLEDGE_BASE.find((entry) =>
     entry.keywords.some((keyword) => normalizedQuestion.includes(normalizeForMatch(keyword)))
   );
