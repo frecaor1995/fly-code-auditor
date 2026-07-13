@@ -73,21 +73,26 @@ create table if not exists reviews (
   created_at timestamptz default now()
 );
 
--- Preparada para migrar lib/knowledge/electricalKnowledgeBase.ts a Supabase
--- mas adelante. Por ahora la app sigue leyendo esa base local como fuente
--- principal; esta tabla queda lista para la migracion (ver README.md).
+-- Base tecnica real consultada por app/api/queries/route.ts vía
+-- lib/db/dbAdapter.ts#findKnowledgeByQuestion, ANTES del fallback generico.
+-- lib/knowledge/electricalKnowledgeBase.ts (TypeScript local) sigue siendo
+-- el fallback si esta tabla no tiene una coincidencia (ver README.md).
+-- Nota: en un proyecto Supabase ya existente que se creo con la version
+-- anterior de este archivo, faltaran title/answer_es/answer_en/
+-- code_references/source_used/updated_at — usa
+-- supabase/knowledge_entries_upgrade.sql para agregarlas sin borrar datos.
 create table if not exists knowledge_entries (
   id uuid primary key default gen_random_uuid(),
   category text not null,
+  title text,
   keywords text[] not null,
-  code_reference text,
-  source_type text,
-  content_es text,
-  content_en text,
+  answer_es text,
+  answer_en text,
+  code_references text,
   risk_level text,
-  checklist_es jsonb,
-  checklist_en jsonb,
-  created_at timestamptz default now()
+  source_used text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 create index if not exists queries_project_id_idx on queries(project_id);

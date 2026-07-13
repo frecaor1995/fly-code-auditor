@@ -11,13 +11,7 @@ import {
   escalateQuery as escalateLocalQuery
 } from "./repos/queries";
 import { setReviewDecision as setLocalReviewDecision } from "./repos/reviews";
-import {
-  ELECTRICAL_KNOWLEDGE_BASE,
-  findKnowledgeBaseMatch,
-  normalizeForMatch,
-  type KnowledgeBaseEntry,
-  type KnowledgeSourceType
-} from "../knowledge/electricalKnowledgeBase";
+import { normalizeForMatch } from "../knowledge/electricalKnowledgeBase";
 import type {
   AssistantResponse,
   Language,
@@ -47,9 +41,11 @@ import type {
 // asi que un fallo al guardar en Supabase nunca debe ocultar la respuesta
 // ya generada (ver app/api/queries/route.ts).
 //
-// Regla para lecturas (getProjects/getQueries/getQueryById/getKnowledgeEntries):
-// siempre se degrada a datos locales si Supabase falla o no esta
-// configurado, para no tumbar una pagina completa por un error de red.
+// Regla para lecturas (getProjects/getQueries/getQueryById): siempre se
+// degrada a datos locales si Supabase falla o no esta configurado, para no
+// tumbar una pagina completa por un error de red. findKnowledgeByQuestion es
+// la excepcion: devuelve null en cualquiera de esos casos (el fallback al
+// motor mock local vive en app/api/queries/route.ts, no aqui).
 
 function mapProjectStatusFromDb(status: string | null): ProjectStatus {
   if (status === "in_review") return "en_revision";
@@ -126,7 +122,7 @@ function normalizeProjectIdForDb(projectId: string | null | undefined): string |
 // "high": el nivel de riesgo real y completo sigue disponible dentro de
 // "answer" (la respuesta completa), asi que no se pierde informacion, solo
 // se colapsa a 3 niveles para esta columna especifica.
-function mapRiskLevelToDb(riskLevel: RiskLevel): "low" | "medium" | "high" {
+export function mapRiskLevelToDb(riskLevel: RiskLevel): "low" | "medium" | "high" {
   if (riskLevel === "bajo") return "low";
   if (riskLevel === "medio") return "medium";
   return "high";
@@ -233,7 +229,7 @@ function pickCoreQueryColumns(payload: Record<string, unknown>): Record<string, 
 // Extrae la referencia de "Archivo interno" del bloque "Base usada para
 // esta respuesta" (ver lib/ai/mockAssistant.ts) para poblar source_used
 // con la fuente interna real usada (ej. lib/knowledge/electricalKnowledgeBase.ts).
-function extractSourceFile(sourceInfo?: string): string | null {
+export function extractSourceFile(sourceInfo?: string): string | null {
   if (!sourceInfo) return null;
   const match = sourceInfo.match(/(?:Archivo interno|Internal file):\s*(.+)/);
   return match ? match[1].trim() : null;
@@ -262,40 +258,43 @@ function mapReviewRow(row: SupabaseReviewRow): ReviewRecord {
   };
 }
 
-interface SupabaseKnowledgeRow {
+// Fila real de public.knowledge_entries (verificado contra la tabla en vivo:
+// ver supabase/knowledge_entries_upgrade.sql para las columnas agregadas).
+interface SupabaseKnowledgeEntryRow {
   id: string;
   category: string;
-  keywords: string[];
-  code_reference: string | null;
-  source_type: string | null;
-  content_es: string | null;
-  content_en: string | null;
+  title: string | null;
+  keywords: string[] | null;
+  answer_es: string | null;
+  answer_en: string | null;
+  code_references: string | null;
   risk_level: string | null;
-  checklist_es: string[] | null;
-  checklist_en: string[] | null;
+  source_used: string | null;
 }
 
-function mapKnowledgeRow(row: SupabaseKnowledgeRow): KnowledgeBaseEntry {
+export interface KnowledgeEntryMatch {
+  id: string;
+  category: string;
+  title: string | null;
+  keywords: string[];
+  answerEs: string;
+  answerEn: string;
+  codeReferences: string | null;
+  riskLevel: RiskLevel;
+  sourceUsed: string;
+}
+
+function mapKnowledgeEntryRow(row: SupabaseKnowledgeEntryRow): KnowledgeEntryMatch {
   return {
     id: row.id,
     category: row.category,
-    keywords: row.keywords ?? [],
-    codeReference: row.code_reference ?? "",
-    sourceType: (row.source_type as KnowledgeSourceType) ?? "guia_interna_general",
-    shortAnswerEs: row.content_es ?? "",
-    shortAnswerEn: row.content_en ?? "",
-    riskLevel: (row.risk_level as RiskLevel) ?? "medio",
-    checklistEs: Array.isArray(row.checklist_es) ? row.checklist_es : [],
-    checklistEn: Array.isArray(row.checklist_en) ? row.checklist_en : [],
-    // La tabla knowledge_entries (ver supabase/schema.sql) todavia no tiene
-    // columnas para estos campos; quedan vacios hasta que se extienda el
-    // esquema como parte de la migracion completa de electricalKnowledgeBase.ts.
-    missingQuestionsEs: [],
-    missingQuestionsEn: [],
-    recommendationEs: "",
-    recommendationEn: "",
-    warningEs: "",
-    warningEn: ""
+    title: row.title ?? null,
+    keywords: Array.isArray(row.keywords) ? row.keywords : [],
+    answerEs: row.answer_es ?? "",
+    answerEn: row.answer_en ?? "",
+    codeReferences: row.code_references ?? null,
+    riskLevel: mapRiskLevelFromDb(row.risk_level),
+    sourceUsed: row.source_used ?? "Fly Electric Solutions LLC internal knowledge base"
   };
 }
 
@@ -581,44 +580,33 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewReco
   return review;
 }
 
-// --- Knowledge base (electrica) --------------------------------------------
+// --- Knowledge base (electrica, tabla real en Supabase) --------------------
 
-// La base local (lib/knowledge/electricalKnowledgeBase.ts) sigue siendo el
-// fallback real: knowledge_entries queda preparada en Supabase (ver
-// supabase/schema.sql) para una migracion futura, pero mientras este vacia
-// (o Supabase no este configurado) estas funciones devuelven la base local.
-export async function getKnowledgeEntries(): Promise<KnowledgeBaseEntry[]> {
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseServerClient();
-      const { data, error } = await supabase.from("knowledge_entries").select("*");
-      if (error) throw error;
-      if (data && data.length > 0) return (data as SupabaseKnowledgeRow[]).map(mapKnowledgeRow);
-    } catch (error) {
-      logSupabaseError("getKnowledgeEntries: fallo Supabase, usando base local.", error);
-    }
-  }
-  return ELECTRICAL_KNOWLEDGE_BASE;
-}
+// public.knowledge_entries es ahora la base tecnica REAL: app/api/queries/route.ts
+// la consulta primero, antes de caer al motor mock local
+// (lib/knowledge/electricalKnowledgeBase.ts). Esta funcion NO hace ese
+// fallback ella misma -esa decision vive en el caller-: si Supabase no esta
+// configurado, no hay filas, ninguna coincide por keywords, o la consulta
+// falla, devuelve null y punto.
+export async function findKnowledgeByQuestion(question: string): Promise<KnowledgeEntryMatch | null> {
+  if (!isSupabaseConfigured()) return null;
 
-export async function findKnowledgeByQuestion(question: string): Promise<KnowledgeBaseEntry | undefined> {
-  if (isSupabaseConfigured()) {
-    try {
-      const supabase = getSupabaseServerClient();
-      const { data, error } = await supabase.from("knowledge_entries").select("*");
-      if (error) throw error;
-      if (data && data.length > 0) {
-        const normalizedQuestion = normalizeForMatch(question);
-        const match = (data as SupabaseKnowledgeRow[])
-          .map(mapKnowledgeRow)
-          .find((entry) => entry.keywords.some((kw) => normalizedQuestion.includes(normalizeForMatch(kw))));
-        if (match) return match;
-      }
-    } catch (error) {
-      logSupabaseError("findKnowledgeByQuestion: fallo Supabase, usando base local.", error);
-    }
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase.from("knowledge_entries").select("*");
+    if (error) throw error;
+    if (!data || data.length === 0) return null;
+
+    const normalizedQuestion = normalizeForMatch(question);
+    const rows = data as SupabaseKnowledgeEntryRow[];
+    const match = rows.find((row) =>
+      (row.keywords ?? []).some((keyword) => normalizedQuestion.includes(normalizeForMatch(keyword)))
+    );
+    return match ? mapKnowledgeEntryRow(match) : null;
+  } catch (error) {
+    logSupabaseError("findKnowledgeByQuestion: fallo la busqueda en Supabase.", error);
+    return null;
   }
-  return findKnowledgeBaseMatch(question);
 }
 
 export function extractSourceCategory(sourceInfo?: string): string | null {
