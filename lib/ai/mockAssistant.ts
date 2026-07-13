@@ -102,6 +102,32 @@ const META_SOURCE_KEYWORDS = [
   "que norma uso"
 ];
 
+// Ademas de la lista de frases exactas de arriba, estos patrones cubren
+// variaciones de orden/redaccion que una lista de frases literales siempre
+// se queda corta en cubrir (ej. "cual es la base de tus respuestas",
+// "en que se basan tus respuestas", "de donde sale la informacion que
+// usas"). Se combinan dos ideas: palabra de "origen/base/fuente" +
+// palabra de "tu/tus/esta(s) respuesta(s)/informacion", en cualquier orden
+// y con texto intermedio.
+const META_SOURCE_PATTERNS: RegExp[] = [
+  /\bbase(s)?\b[\s\S]{0,25}\b(tu|tus|su|sus|esta|estas)\b[\s\S]{0,15}\brespuesta/,
+  /\brespuesta[\s\S]{0,25}\bbase(s)?\b/,
+  /\bfuente\b[\s\S]{0,25}\brespuesta/,
+  /\brespuesta[\s\S]{0,25}\bfuente\b/,
+  /\bde\s+donde\b[\s\S]{0,20}\b(sacas|sale|salen|saca|viene|vienen|obtienes|obtiene|obtienen)\b/,
+  /\b(te|se)\s+bas(a|an|as)\b/,
+  /\bcual\s+es\s+(la|tu)\s+(base|fuente)\b/,
+  /\bcon\s+base\s+en\s+que\b/,
+  /\bbajo\s+que\s+base/,
+  /\bknowledge\s*base\b/,
+  /\binternal\s*source\b/,
+  /\bsource\s*used\b/,
+  /\bque\s+norma\s+usa/,
+  /\bque\s+categoria\s+usa/,
+  /\barchivo\s+interno\b/,
+  /\bnivel\s+de\s+confianza\b/
+];
+
 function normalize(text: string): string {
   return text
     .normalize("NFD")
@@ -114,7 +140,8 @@ function includesAny(text: string, terms: string[]): boolean {
 }
 
 function isSourceInfoQuestion(normalizedQuestion: string): boolean {
-  return includesAny(normalizedQuestion, META_SOURCE_KEYWORDS);
+  if (includesAny(normalizedQuestion, META_SOURCE_KEYWORDS)) return true;
+  return META_SOURCE_PATTERNS.some((pattern) => pattern.test(normalizedQuestion));
 }
 
 // API publica (acepta texto crudo, sin normalizar) para que otros modulos
