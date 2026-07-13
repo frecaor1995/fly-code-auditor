@@ -69,7 +69,11 @@ const CATEGORY_DEFS: CategoryDef[] = [CATEGORY_SYMBOLS, CATEGORY_CHECKLIST, CATE
 // de licencias o permisos en vez de explicar la fuente.
 const META_SOURCE_KEYWORDS = [
   "fuente interna",
+  "base interna",
   "base de conocimiento",
+  "knowledge base",
+  "internal source",
+  "source used",
   "de donde sacas",
   "de donde obtienes",
   "de donde viene esta respuesta",
@@ -90,6 +94,7 @@ const META_SOURCE_KEYWORDS = [
   "con base en que fuente",
   "con base en que",
   "cual es la fuente",
+  "cual es tu fuente",
   "que fuente",
   "bajo que bases",
   "bajo que base",
@@ -126,17 +131,6 @@ function sourceTypeToConfidence(sourceType: KnowledgeSourceType): Confidence {
 }
 
 type DetectedCategory = { source: "kb"; entry: KnowledgeBaseEntry } | { source: "legacy"; def: CategoryDef };
-
-// La busqueda en la base electrica interna (lib/knowledge/electricalKnowledgeBase.ts)
-// vive en findKnowledgeBaseMatch, compartida con lib/db/dbAdapter.ts para
-// que ambos detecten exactamente la misma categoria ante la misma pregunta.
-function detectCategory(normalizedQuestion: string): DetectedCategory | undefined {
-  const kbEntry = findKnowledgeBaseMatch(normalizedQuestion);
-  if (kbEntry) return { source: "kb", entry: kbEntry };
-  const legacyDef = CATEGORY_DEFS.find((cat) => includesAny(normalizedQuestion, cat.keywords));
-  if (legacyDef) return { source: "legacy", def: legacyDef };
-  return undefined;
-}
 
 function categoryLabel(detected: DetectedCategory): string {
   return detected.source === "kb" ? detected.entry.category : detected.def.categoria;
@@ -243,35 +237,83 @@ function sourceInfoForDetected(language: Language, detected: DetectedCategory): 
   });
 }
 
-const NO_SOURCE_ES =
-  "No tengo suficiente informacion en la base interna para identificar la fuente exacta de una respuesta puntual. Esta base interna (lib/knowledge/electricalKnowledgeBase.ts, data/knowledgeBase.json y lib/ai/mockAssistant.ts) es una referencia de Fly Electric Solutions LLC basada en NEC 2023, TDLR, Houston AHJ, NFPA 70E y NFPA 99; no reemplaza el texto oficial completo de esos codigos. Verifique el NEC oficial, TDLR, Houston AHJ y la aprobacion del Master Electrician.";
-const NO_SOURCE_EN =
-  "I do not have enough information in the internal knowledge base to identify the exact source of a specific response. This internal base (lib/knowledge/electricalKnowledgeBase.ts, data/knowledgeBase.json, and lib/ai/mockAssistant.ts) is a Fly Electric Solutions LLC reference built from NEC 2023, TDLR, Houston AHJ, NFPA 70E, and NFPA 99; it does not replace the full official text of those codes. Please verify with the official NEC, TDLR, Houston AHJ, and the Master Electrician's approval.";
+// Respuesta FIJA para preguntas META sobre transparencia/fuente interna
+// (ver META_SOURCE_KEYWORDS: "de donde sacas tus respuestas", "bajo que
+// bases", "cual es tu fuente", "fuente interna", "knowledge base", etc).
+// A diferencia de las respuestas tecnicas, esta pregunta SIEMPRE tiene una
+// respuesta util: nunca cae en el fallback generico de "no tengo
+// suficiente informacion", sin importar si tambien menciona un tema
+// tecnico especifico (hospitales, GFCI, etc.) dentro de la misma frase.
+const SYSTEM_SOURCE_ARCHIVO_INTERNO = "Fly Electric Solutions LLC internal knowledge base";
 
-// Responde preguntas META sobre la fuente/base interna (no preguntas
-// tecnicas electricas). Si la pregunta tambien menciona una categoria
-// reconocible (base electrica nueva o categorias legacy) se explica esa
-// categoria puntual; si no, se usa el mensaje fijo de "no puedo identificar
-// la fuente".
-function buildSourceInfoResponse(normalizedQuestion: string, language: Language): AssistantResponse {
-  const detected = detectCategory(normalizedQuestion);
+const SYSTEM_SOURCE_SHORT_ANSWER_ES = [
+  "Mis respuestas salen de la base interna de Fly Electric Solutions LLC. Esta base combina conocimiento tecnico estructurado, reglas internas del programa y entradas guardadas en Supabase cuando estan disponibles.",
+  "",
+  "La base interna puede incluir:",
+  "- lib/knowledge/electricalKnowledgeBase.ts",
+  "- lib/ai/mockAssistant.ts",
+  "- data/knowledgeBase.json si existe",
+  "- public.knowledge_entries en Supabase",
+  "- reglas internas del generador de respuestas",
+  "",
+  "Las categorias principales son NEC 2023, TDLR, Houston AHJ, NFPA 70E, NFPA 99, healthcare, iluminacion, receptaculos, seguridad, inspecciones, planos y procedimientos electricos.",
+  "",
+  "Esta informacion es una guia tecnica interna. No reemplaza el NEC oficial, TDLR, Houston AHJ, NFPA 70E, NFPA 99 ni la aprobacion del Master Electrician."
+].join("\n");
 
-  if (!detected) {
-    return base(language, {
-      shortAnswer: NO_SOURCE_ES,
-      englishSummary: language !== "es" ? NO_SOURCE_EN : undefined,
-      riskLevel: "bajo",
-      codeReference: verifyNecMessage(language),
-      recommendation: NO_SOURCE_ES
-    });
-  }
+const SYSTEM_SOURCE_SHORT_ANSWER_EN =
+  "My answers come from Fly Electric Solutions LLC's internal knowledge base, including structured technical content, internal response rules, and Supabase knowledge entries when available. This is internal guidance and does not replace official NEC, TDLR, Houston AHJ, NFPA 70E, NFPA 99, or Master Electrician approval.";
 
-  return base(language, {
-    shortAnswer: sourceInfoForDetected(language, detected),
+const SYSTEM_SOURCE_CODE_REFERENCE_ES =
+  "Base interna Fly Electric Solutions LLC: NEC 2023, TDLR, Houston AHJ, NFPA 70E, NFPA 99 y reglas internas del programa.";
+const SYSTEM_SOURCE_CODE_REFERENCE_EN =
+  "Fly Electric Solutions LLC internal knowledge base: NEC 2023, TDLR, Houston AHJ, NFPA 70E, NFPA 99, and the program's internal rules.";
+
+const SYSTEM_SOURCE_RECOMMENDATION_ES =
+  "Usar esta app como guia tecnica preliminar y confirmar decisiones finales con el codigo oficial aplicable, la autoridad competente y el Master Electrician.";
+const SYSTEM_SOURCE_RECOMMENDATION_EN =
+  "Use this app as preliminary technical guidance and confirm final decisions with the applicable official code, the relevant authority, and the Master Electrician.";
+
+function buildSystemSourceExplanationSourceInfo(language: Language): string {
+  const es = [
+    "Base usada para esta respuesta:",
+    `- Fuente interna usada: ${SYSTEM_SOURCE_ARCHIVO_INTERNO}`,
+    "- Categoria detectada: system_source_explanation",
+    "- Referencia NEC/NFPA general (si aplica): NEC 2023, TDLR, Houston AHJ, NFPA 70E, NFPA 99",
+    `- Archivo interno: ${SYSTEM_SOURCE_ARCHIVO_INTERNO}`,
+    "- Nivel de confianza: alto",
+    "- Que debe verificar el Master Electrician: Confirmar cualquier respuesta tecnica puntual contra el NEC oficial vigente, TDLR, Houston AHJ y su propio criterio profesional."
+  ].join("\n");
+
+  if (language === "es") return es;
+
+  const en = [
+    "Source used for this response:",
+    `- Internal source used: ${SYSTEM_SOURCE_ARCHIVO_INTERNO}`,
+    "- Detected category: system_source_explanation",
+    "- General NEC/NFPA reference (if applicable): NEC 2023, TDLR, Houston AHJ, NFPA 70E, NFPA 99",
+    `- Internal file: ${SYSTEM_SOURCE_ARCHIVO_INTERNO}`,
+    "- Confidence level: alto",
+    "- What the Master Electrician must verify: Confirm any specific technical answer against the official NEC, TDLR, Houston AHJ, and their own professional judgment."
+  ].join("\n");
+
+  if (language === "en") return en;
+  return `${es}\n\n${en}`;
+}
+
+function buildSystemSourceExplanationResponse(language: Language): AssistantResponse {
+  const useEnglish = language === "en";
+  return {
+    shortAnswer: useEnglish ? SYSTEM_SOURCE_SHORT_ANSWER_EN : SYSTEM_SOURCE_SHORT_ANSWER_ES,
+    englishSummary: language !== "es" ? SYSTEM_SOURCE_SHORT_ANSWER_EN : undefined,
     riskLevel: "bajo",
-    codeReference: categoryReference(detected),
-    recommendation: "Esta es una explicacion de la fuente interna usada, no una respuesta tecnica de instalacion."
-  });
+    codeReference: useEnglish ? SYSTEM_SOURCE_CODE_REFERENCE_EN : SYSTEM_SOURCE_CODE_REFERENCE_ES,
+    checklist: [],
+    missingQuestions: [],
+    recommendation: useEnglish ? SYSTEM_SOURCE_RECOMMENDATION_EN : SYSTEM_SOURCE_RECOMMENDATION_ES,
+    warning: standardWarning(language),
+    sourceInfo: buildSystemSourceExplanationSourceInfo(language)
+  };
 }
 
 // Construye la respuesta tecnica completa a partir de una entrada de
@@ -309,8 +351,10 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
 
   // Preguntas sobre la fuente/base interna: deben resolverse ANTES que
   // cualquier categoria tecnica (ver comentario junto a META_SOURCE_KEYWORDS).
+  // Siempre responden con la explicacion fija de la fuente interna, nunca
+  // con el fallback generico de "no tengo suficiente informacion".
   if (isSourceInfoQuestion(q)) {
-    return buildSourceInfoResponse(q, language);
+    return buildSystemSourceExplanationResponse(language);
   }
 
   // Base electrica interna (lib/knowledge/electricalKnowledgeBase.ts): primera

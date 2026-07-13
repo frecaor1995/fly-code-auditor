@@ -70,7 +70,7 @@ export function AssistantResponseCard({ response, uiLang, actions }: Props) {
             🔊 {L.listen}
           </button>
         </div>
-        <p className="text-base leading-relaxed">{response.shortAnswer}</p>
+        <p className="text-base leading-relaxed whitespace-pre-line">{response.shortAnswer}</p>
       </section>
 
       {response.englishSummary && (
