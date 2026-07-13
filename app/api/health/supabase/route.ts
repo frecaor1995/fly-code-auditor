@@ -6,12 +6,44 @@ import { isSupabaseConfigured, getSupabaseServerClient } from "@/lib/db/supabase
 // real (con limpieza inmediata) contra public.queries, sin mostrar nunca
 // las claves. Requiere sesion iniciada (cualquier usuario) para evitar que
 // quede abierto a internet como un endpoint que escribe en la base de datos.
+// Diagnostico de SUPABASE_URL: SOLO metadatos derivados (host, pathname,
+// longitud, si empieza con https, si termina en .supabase.co, y un preview
+// parcial de 15+15 caracteres). SUPABASE_SERVICE_ROLE_KEY nunca se lee para
+// diagnostico mas alla de Boolean(...) (presente/ausente) en ningun punto
+// de este archivo.
+function diagnoseSupabaseUrl(rawUrl: string) {
+  let host: string | null = null;
+  let pathname: string | null = null;
+  try {
+    if (rawUrl) {
+      const parsed = new URL(rawUrl);
+      host = parsed.host;
+      pathname = parsed.pathname;
+    }
+  } catch {
+    // URL invalida/malformada: se deja host/pathname en null sin romper el
+    // endpoint, el resto de los campos (length, startsWith, etc.) igual
+    // ayudan a diagnosticar que esta mal.
+  }
+
+  return {
+    supabaseUrlHost: host,
+    supabaseUrlPathname: pathname,
+    supabaseUrlStartsWithHttps: rawUrl.startsWith("https://"),
+    supabaseUrlEndsWithSupabaseCo: rawUrl.endsWith(".supabase.co"),
+    supabaseUrlLength: rawUrl.length,
+    rawSupabaseUrlPreview: rawUrl ? `${rawUrl.slice(0, 15)}...${rawUrl.slice(-15)}` : null
+  };
+}
+
 export async function GET() {
   const user = getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
 
-  const supabaseUrlPresent = Boolean(process.env.SUPABASE_URL);
+  const rawSupabaseUrl = process.env.SUPABASE_URL ?? "";
+  const supabaseUrlPresent = Boolean(rawSupabaseUrl);
   const serviceRolePresent = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
+  const urlDiagnosis = diagnoseSupabaseUrl(rawSupabaseUrl);
 
   let canReadQueries = false;
   let canInsertQueries = false;
@@ -24,7 +56,8 @@ export async function GET() {
       serviceRolePresent,
       canReadQueries,
       canInsertQueries,
-      error: "Supabase no esta configurado: faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY."
+      error: "Supabase no esta configurado: faltan SUPABASE_URL y/o SUPABASE_SERVICE_ROLE_KEY.",
+      ...urlDiagnosis
     });
   }
 
@@ -108,6 +141,7 @@ export async function GET() {
     serviceRolePresent,
     canReadQueries,
     canInsertQueries,
-    error
+    error,
+    ...urlDiagnosis
   });
 }
