@@ -3,7 +3,8 @@ import { getCurrentUser } from "@/lib/auth/session";
 import { hasPermission } from "@/lib/auth/permissions";
 import { getQueries, createQuery, extractSourceCategory } from "@/lib/db/dbAdapter";
 import { askAssistant } from "@/lib/ai";
-import type { Language, QueryMode } from "@/lib/db/types";
+import { isMetaSourceQuestion } from "@/lib/ai/mockAssistant";
+import type { AssistantResponse, Language, QueryMode } from "@/lib/db/types";
 
 export async function GET() {
   const user = getCurrentUser();
@@ -30,28 +31,46 @@ export async function POST(req: NextRequest) {
   const projectId = (body?.projectId as string | null) ?? null;
 
   // La generacion de la respuesta (motor mock + base de conocimiento
-  // electrica, sin red ni fs) es la parte critica y no deberia fallar
-  // nunca. Si falla, es un error real y no hay nada util que mostrar.
-  let response;
+  // electrica, sin red ni fs) casi nunca deberia fallar, pero si falla NO
+  // se corta el flujo: toda consulta enviada por el usuario debe quedar
+  // guardada, incluyendo el caso de un error controlado del motor.
+  let response: AssistantResponse;
+  let generationErrorMessage: string | null = null;
   try {
     response = await askAssistant({ question, language });
     console.log("[api/queries] Respuesta generada (motor local):", response.shortAnswer);
-  } catch (error) {
-    console.error("[api/queries] Error generando respuesta del asistente:", error);
-    return NextResponse.json(
-      {
-        error: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos.",
-        answer: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos."
-      },
-      { status: 500 }
-    );
+  } catch (genError) {
+    console.error("[api/queries] Error generando respuesta del asistente:", genError);
+    generationErrorMessage = genError instanceof Error ? genError.message : "Error desconocido generando la respuesta.";
+    response = {
+      shortAnswer: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos.",
+      riskLevel: "bajo",
+      codeReference: "",
+      checklist: [],
+      missingQuestions: [],
+      recommendation: "Reintentar la consulta en unos segundos.",
+      warning: "Error controlado del motor de respuestas; esta consulta quedo registrada para revision."
+    };
   }
+
+  // Clasificacion para la columna "category": las preguntas meta sobre la
+  // fuente interna (bajo que bases, de donde sale esta respuesta, que norma
+  // usaste, etc.) se etiquetan aparte de las respuestas tecnicas normales.
+  // Si no se detecta ninguna categoria especifica (fallback generico,
+  // pregunta sin informacion suficiente, error controlado), se usa
+  // "general_or_fallback" en vez de dejar la columna vacia.
+  const rawCategory = isMetaSourceQuestion(question)
+    ? "system_source_explanation"
+    : extractSourceCategory(response.sourceInfo);
+  const sourceCategory = rawCategory && rawCategory.trim() ? rawCategory : "general_or_fallback";
 
   // Guardar en Supabase es "best effort": lib/db/dbAdapter.ts ya garantiza
   // que createQuery nunca lanza (si Supabase falla, registra el error en
   // los logs del servidor y devuelve la misma respuesta sin persistir). El
   // usuario siempre ve la respuesta generada, se haya podido guardar o no.
-  const { query, persisted } = await createQuery({
+  // Esta llamada se ejecuta SIEMPRE, tambien cuando la generacion fallo
+  // arriba (para que el error controlado tambien quede registrado).
+  const { query, persisted, error: saveError } = await createQuery({
     projectId,
     planId: null,
     userEmail: user.email,
@@ -59,18 +78,30 @@ export async function POST(req: NextRequest) {
     language,
     question,
     response,
-    sourceCategory: extractSourceCategory(response.sourceInfo)
+    sourceCategory,
+    errorMessage: generationErrorMessage
   });
 
   if (!persisted) {
     console.error(
-      `[api/queries] La consulta ${query.id} se respondio pero NO se pudo guardar en Supabase. Revisar SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY y los logs de [dbAdapter] arriba.`
+      `[api/queries] La consulta ${query.id} se respondio pero NO se pudo guardar en Supabase (${saveError}). Revisar SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY y los logs de [dbAdapter] arriba.`
     );
   }
 
-  // "answer" se incluye plano ademas de "query" para cualquier consumidor
-  // que solo necesite el texto de la respuesta sin el objeto completo.
-  // "persisted" le dice al cliente si el guardado en Supabase funciono,
-  // para poder avisar sin dejar la pantalla vacia.
-  return NextResponse.json({ query, answer: response.shortAnswer, persisted }, { status: 201 });
+  const responseBody = {
+    query,
+    answer: response.shortAnswer,
+    persisted,
+    queryId: query.id,
+    saveError
+  };
+
+  if (generationErrorMessage) {
+    return NextResponse.json(
+      { ...responseBody, error: "No se pudo generar una respuesta. Intenta de nuevo en unos segundos." },
+      { status: 500 }
+    );
+  }
+
+  return NextResponse.json(responseBody, { status: 201 });
 }

@@ -377,17 +377,47 @@ export interface CreateQueryInput {
   question: string;
   response: AssistantResponse;
   sourceCategory?: string | null;
+  // Mensaje de un error de generacion "controlado" (ej. askAssistant lanzo
+  // una excepcion). Se guarda en error_message; null cuando la respuesta se
+  // genero con normalidad.
+  errorMessage?: string | null;
+}
+
+const DEFAULT_CATEGORY = "general_or_fallback";
+const DEFAULT_SOURCE_USED = "lib/ai/mockAssistant.ts (motor de reglas local, sin archivo interno especifico)";
+
+// Ademas de "column does not exist" (42703/PGRST204), tambien se reintenta
+// con el set base de columnas ante violaciones de NOT NULL (23502) o de
+// check constraints (23514) en las columnas opcionales: la tabla real ha
+// ido cambiando de forma, y esto evita que una consulta se quede sin
+// guardar solo porque una columna nueva no tiene el valor exacto que esa
+// version de la tabla exige.
+function isSchemaMismatchError(error: { code?: string; message?: string } | null | undefined): boolean {
+  if (!error) return false;
+  if (["PGRST204", "42703", "23502", "23514"].includes(error.code ?? "")) return true;
+  const message = (error.message ?? "").toLowerCase();
+  return message.includes("column") && (message.includes("does not exist") || message.includes("could not find"));
 }
 
 // A diferencia de createProject/createReview, createQuery NUNCA lanza: la
 // respuesta del asistente ya se genero de forma independiente (ver
 // app/api/queries/route.ts) y siempre debe llegar al usuario. Si Supabase
 // falla, se devuelve un QueryRecord "en memoria" (no persistido) con esa
-// misma respuesta, y el error (code/message/details/hint) queda registrado
-// en los logs del servidor via logSupabaseError.
-export async function createQuery(input: CreateQueryInput): Promise<{ query: QueryRecord; persisted: boolean }> {
+// misma respuesta, el error (code/message/details/hint) queda registrado
+// en los logs del servidor via logSupabaseError, y tambien se devuelve como
+// texto plano en "error" para que la API route lo exponga como saveError.
+export async function createQuery(
+  input: CreateQueryInput
+): Promise<{ query: QueryRecord; persisted: boolean; error: string | null }> {
   const riskLevel = input.response.riskLevel;
   const requiresMasterReview = riskLevel === "alto" || riskLevel === "critico";
+
+  // category y source_used NUNCA se insertan vacios/null: toda consulta
+  // (respuesta tecnica, fallback generico, meta-pregunta sobre la fuente,
+  // pregunta sin informacion suficiente) debe quedar clasificada con algo,
+  // para no romper un posible constraint NOT NULL en esas columnas.
+  const category = input.sourceCategory?.trim() ? input.sourceCategory.trim() : DEFAULT_CATEGORY;
+  const sourceUsed = extractSourceFile(input.response.sourceInfo) ?? DEFAULT_SOURCE_USED;
 
   if (isSupabaseConfigured()) {
     try {
@@ -397,8 +427,8 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
       // Payload completo: incluye las columnas base (siempre deben existir)
       // mas las columnas opcionales que la tabla "puede tener"
       // (category/source_used/saved_to_db/error_message/language). Todas
-      // con valores validos y seguros (nunca undefined) para no violar un
-      // posible constraint NOT NULL en las columnas nuevas.
+      // con valores validos y seguros (nunca undefined/null salvo
+      // error_message, que es null solo cuando no hubo error).
       const fullPayload: Record<string, unknown> = {
         project_id: normalizeProjectIdForDb(input.projectId),
         user_email: input.userEmail || null,
@@ -407,20 +437,21 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
         language_mode: languageMode,
         language: languageMode,
         risk_level: mapRiskLevelToDb(riskLevel),
-        category: input.sourceCategory ?? null,
-        source_used: extractSourceFile(input.response.sourceInfo),
+        category,
+        source_used: sourceUsed,
         saved_to_db: true,
-        error_message: null
+        error_message: input.errorMessage ?? null
       };
 
       let { data, error } = await supabase.from("queries").insert(fullPayload).select().single();
 
-      // Si la tabla no tiene alguna de las columnas opcionales (o "language"),
-      // reintenta automaticamente solo con las 6 columnas base que siempre
-      // deben existir, en vez de fallar el guardado completo.
-      if (error && isMissingColumnError(error)) {
+      // Si la tabla no tiene alguna de las columnas opcionales, o alguna
+      // quedo con una restriccion (NOT NULL / check) que este payload no
+      // cumple, reintenta automaticamente solo con las 6 columnas base que
+      // siempre deben existir, en vez de fallar el guardado completo.
+      if (error && isSchemaMismatchError(error)) {
         logSupabaseError(
-          "createQuery: la tabla no tiene todas las columnas opcionales; reintentando con el set base.",
+          "createQuery: la tabla no acepto el payload completo; reintentando con el set base.",
           error
         );
         ({ data, error } = await supabase
@@ -433,10 +464,12 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
       if (error) throw error;
       return {
         query: mapQueryRow(data as SupabaseQueryRow, { planId: input.planId, mode: input.mode }),
-        persisted: true
+        persisted: true,
+        error: null
       };
     } catch (error) {
       logSupabaseError("createQuery: fallo el guardado en Supabase; se devuelve la respuesta sin persistir.", error);
+      const pgError = error as { message?: string };
       return {
         query: {
           id: `local-${Date.now()}`,
@@ -451,7 +484,8 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
           requiresMasterReview,
           createdAt: new Date().toISOString()
         },
-        persisted: false
+        persisted: false,
+        error: pgError?.message ?? "Error desconocido guardando en Supabase."
       };
     }
   }
@@ -465,7 +499,7 @@ export async function createQuery(input: CreateQueryInput): Promise<{ query: Que
     question: input.question,
     response: input.response
   });
-  return { query, persisted: true };
+  return { query, persisted: true, error: null };
 }
 
 export async function getQueryById(id: string): Promise<QueryRecord | null> {

@@ -73,6 +73,7 @@ const META_SOURCE_KEYWORDS = [
   "de donde sacas",
   "de donde obtienes",
   "de donde viene esta respuesta",
+  "de donde sale esta respuesta",
   "archivo interno",
   "categoria usaste",
   "categoria usada",
@@ -87,8 +88,13 @@ const META_SOURCE_KEYWORDS = [
   "es guia general",
   "regla tecnica",
   "con base en que fuente",
+  "con base en que",
   "cual es la fuente",
-  "que fuente"
+  "que fuente",
+  "bajo que bases",
+  "bajo que base",
+  "que norma usaste",
+  "que norma uso"
 ];
 
 function normalize(text: string): string {
@@ -104,6 +110,14 @@ function includesAny(text: string, terms: string[]): boolean {
 
 function isSourceInfoQuestion(normalizedQuestion: string): boolean {
   return includesAny(normalizedQuestion, META_SOURCE_KEYWORDS);
+}
+
+// API publica (acepta texto crudo, sin normalizar) para que otros modulos
+// -como app/api/queries/route.ts- puedan clasificar una pregunta como
+// "meta-pregunta sobre la fuente interna" sin duplicar la lista de
+// keywords ni la logica de normalizacion.
+export function isMetaSourceQuestion(question: string): boolean {
+  return isSourceInfoQuestion(normalize(question));
 }
 
 function sourceTypeToConfidence(sourceType: KnowledgeSourceType): Confidence {
