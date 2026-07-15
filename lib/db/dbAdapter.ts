@@ -259,7 +259,11 @@ function mapReviewRow(row: SupabaseReviewRow): ReviewRecord {
 }
 
 // Fila real de public.knowledge_entries (verificado contra la tabla en vivo:
-// ver supabase/knowledge_entries_upgrade.sql para las columnas agregadas).
+// ver supabase/knowledge_entries_upgrade.sql para las columnas agregadas y
+// supabase/knowledge_entries_official_refs_upgrade.sql para las columnas de
+// referencias a fuentes oficiales vivas: nec_articles/tdlr_references/
+// ahj_references/source_urls/etc). Todas las columnas nuevas son
+// opcionales/nullable: filas antiguas sin estos datos siguen funcionando.
 interface SupabaseKnowledgeEntryRow {
   id: string;
   category: string;
@@ -270,6 +274,16 @@ interface SupabaseKnowledgeEntryRow {
   code_references: string | null;
   risk_level: string | null;
   source_used: string | null;
+  nec_articles?: string[] | null;
+  tdlr_references?: string[] | null;
+  ahj_references?: string[] | null;
+  source_urls?: string[] | null;
+  source_last_checked_at?: string | null;
+  applies_when?: string | null;
+  does_not_apply_when?: string | null;
+  field_notes?: string | null;
+  verification_steps?: string[] | null;
+  official_reference?: string | null;
 }
 
 export interface KnowledgeEntryMatch {
@@ -282,6 +296,16 @@ export interface KnowledgeEntryMatch {
   codeReferences: string | null;
   riskLevel: RiskLevel;
   sourceUsed: string;
+  necArticles: string[];
+  tdlrReferences: string[];
+  ahjReferences: string[];
+  sourceUrls: string[];
+  sourceLastCheckedAt: string | null;
+  appliesWhen: string | null;
+  doesNotApplyWhen: string | null;
+  fieldNotes: string | null;
+  verificationSteps: string[];
+  officialReference: string | null;
 }
 
 function mapKnowledgeEntryRow(row: SupabaseKnowledgeEntryRow): KnowledgeEntryMatch {
@@ -294,7 +318,62 @@ function mapKnowledgeEntryRow(row: SupabaseKnowledgeEntryRow): KnowledgeEntryMat
     answerEn: row.answer_en ?? "",
     codeReferences: row.code_references ?? null,
     riskLevel: mapRiskLevelFromDb(row.risk_level),
-    sourceUsed: row.source_used ?? "Fly Electric Solutions LLC internal knowledge base"
+    sourceUsed: row.source_used ?? "Fly Electric Solutions LLC internal knowledge base",
+    necArticles: Array.isArray(row.nec_articles) ? row.nec_articles : [],
+    tdlrReferences: Array.isArray(row.tdlr_references) ? row.tdlr_references : [],
+    ahjReferences: Array.isArray(row.ahj_references) ? row.ahj_references : [],
+    sourceUrls: Array.isArray(row.source_urls) ? row.source_urls : [],
+    sourceLastCheckedAt: row.source_last_checked_at ?? null,
+    appliesWhen: row.applies_when ?? null,
+    doesNotApplyWhen: row.does_not_apply_when ?? null,
+    fieldNotes: row.field_notes ?? null,
+    verificationSteps: Array.isArray(row.verification_steps) ? row.verification_steps : [],
+    officialReference: row.official_reference ?? null
+  };
+}
+
+// Fila real de public.official_sources (ver supabase/official_sources.sql).
+interface SupabaseOfficialSourceRow {
+  id: string;
+  source_name: string;
+  source_type: string;
+  jurisdiction: string | null;
+  official_url: string;
+  current_version: string | null;
+  last_checked_at: string | null;
+  priority: number | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface OfficialSource {
+  id: string;
+  sourceName: string;
+  sourceType: string;
+  jurisdiction: string | null;
+  officialUrl: string;
+  currentVersion: string | null;
+  lastCheckedAt: string | null;
+  priority: number;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+function mapOfficialSourceRow(row: SupabaseOfficialSourceRow): OfficialSource {
+  return {
+    id: row.id,
+    sourceName: row.source_name,
+    sourceType: row.source_type,
+    jurisdiction: row.jurisdiction ?? null,
+    officialUrl: row.official_url,
+    currentVersion: row.current_version ?? null,
+    lastCheckedAt: row.last_checked_at ?? null,
+    priority: row.priority ?? 10,
+    notes: row.notes ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
   };
 }
 
@@ -613,6 +692,78 @@ export function extractSourceCategory(sourceInfo?: string): string | null {
   if (!sourceInfo) return null;
   const match = sourceInfo.match(/(?:Categoria detectada|Detected category):\s*(.+)/);
   return match ? match[1].trim() : null;
+}
+
+// --- Official sources (NEC/NFPA, TDLR, Houston AHJ) ------------------------
+//
+// public.official_sources es el catalogo vivo de fuentes oficiales externas
+// (ver supabase/official_sources.sql): la app nunca copia el texto de esas
+// fuentes, solo las cita y enlaza. app/api/queries/route.ts las consulta
+// para anexarlas a la respuesta segun el tema detectado (NEC, Texas/
+// licencia, Houston/permitting).
+
+// Devuelve el catalogo completo ordenado por prioridad (menor numero =
+// mayor prioridad). Se degrada a lista vacia si Supabase no esta
+// configurado o la lectura falla, para no tumbar app/api/queries/route.ts
+// por un problema de red o de tabla faltante.
+export async function getOfficialSources(): Promise<OfficialSource[]> {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("official_sources")
+      .select("*")
+      .order("priority", { ascending: true });
+    if (error) throw error;
+    return (data as SupabaseOfficialSourceRow[]).map(mapOfficialSourceRow);
+  } catch (error) {
+    logSupabaseError("getOfficialSources: fallo la lectura en Supabase.", error);
+    return [];
+  }
+}
+
+// Filtra el catalogo por source_type (ej. "nec", "tdlr", "houston_ahj"; ver
+// los valores insertados por supabase/official_sources.sql). Devuelve un
+// arreglo porque mas de una fuente puede compartir el mismo source_type
+// (ej. "TDLR Electricians" y "TDLR Electricians Laws and Rules" ambas
+// podrian marcarse "tdlr" en el futuro).
+export async function findOfficialSourceByType(sourceType: string): Promise<OfficialSource[]> {
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("official_sources")
+      .select("*")
+      .eq("source_type", sourceType)
+      .order("priority", { ascending: true });
+    if (error) throw error;
+    return (data as SupabaseOfficialSourceRow[]).map(mapOfficialSourceRow);
+  } catch (error) {
+    logSupabaseError(`findOfficialSourceByType: fallo la lectura en Supabase (source_type=${sourceType}).`, error);
+    return [];
+  }
+}
+
+// Marca una fuente como verificada ahora mismo (last_checked_at = now()).
+// Uso: cuando alguien confirma manualmente que la URL/version oficial de
+// una fuente sigue siendo correcta. No lanza: un fallo aqui no debe romper
+// el flujo de respuesta de una consulta, solo se registra en los logs.
+export async function updateSourceLastChecked(sourceName: string): Promise<OfficialSource | null> {
+  if (!isSupabaseConfigured()) return null;
+  try {
+    const supabase = getSupabaseServerClient();
+    const { data, error } = await supabase
+      .from("official_sources")
+      .update({ last_checked_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("source_name", sourceName)
+      .select()
+      .single();
+    if (error) throw error;
+    return mapOfficialSourceRow(data as SupabaseOfficialSourceRow);
+  } catch (error) {
+    logSupabaseError(`updateSourceLastChecked: fallo la escritura en Supabase (source_name=${sourceName}).`, error);
+    return null;
+  }
 }
 
 // Referencia directa a getProject local: usada por paginas que todavia no

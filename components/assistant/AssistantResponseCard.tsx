@@ -14,15 +14,19 @@ interface Props {
 const LABELS = {
   es: {
     shortAnswer: "1. Respuesta corta",
-    englishSummary: "2. English summary",
-    riskLevel: "3. Nivel de riesgo",
-    codeReference: "4. Codigo o norma relacionada",
-    planReading: "5. Lectura del plano",
-    checklist: "6. Checklist de revision",
-    missingQuestions: "7. Preguntas faltantes",
-    recommendation: "8. Recomendacion",
-    warning: "9. Advertencia",
-    sourceInfo: "10. Base usada para esta respuesta",
+    englishSummary: "English summary",
+    codeReference: "2. NEC aplicable / regulacion aplicable",
+    officialSourceNote: "3. Fuente oficial consultada o recomendada",
+    practicalApplication: "4. Aplicacion practica",
+    doNotAssume: "5. Cuando no asumir",
+    planReading: "Lectura del plano",
+    checklist: "6. Checklist de campo",
+    missingQuestions: "Preguntas faltantes",
+    riskLevel: "7. Riesgo",
+    recommendation: "Recomendacion adicional",
+    finalVerification: "8. Verificacion final",
+    warning: "Advertencia",
+    sourceInfo: "Base interna usada para esta respuesta",
     listen: "Escuchar",
     sheet: "Hoja",
     symbols: "Simbolos visibles",
@@ -34,15 +38,19 @@ const LABELS = {
   },
   en: {
     shortAnswer: "1. Short answer",
-    englishSummary: "2. English summary",
-    riskLevel: "3. Risk level",
-    codeReference: "4. Related code/standard",
-    planReading: "5. Plan reading",
-    checklist: "6. Review checklist",
-    missingQuestions: "7. Missing questions",
-    recommendation: "8. Recommendation",
-    warning: "9. Warning",
-    sourceInfo: "10. Source used for this response",
+    englishSummary: "English summary",
+    codeReference: "2. Applicable NEC / applicable regulation",
+    officialSourceNote: "3. Official source consulted or recommended",
+    practicalApplication: "4. Practical application",
+    doNotAssume: "5. When not to assume",
+    planReading: "Plan reading",
+    checklist: "6. Field checklist",
+    missingQuestions: "Missing questions",
+    riskLevel: "7. Risk",
+    recommendation: "Additional recommendation",
+    finalVerification: "8. Final verification",
+    warning: "Warning",
+    sourceInfo: "Internal base used for this response",
     listen: "Listen",
     sheet: "Sheet",
     symbols: "Visible symbols",
@@ -80,15 +88,31 @@ export function AssistantResponseCard({ response, uiLang, actions }: Props) {
         </section>
       )}
 
-      <section className="flex items-center gap-3">
-        <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide">{L.riskLevel}</h3>
-        <RiskBadge risk={response.riskLevel} lang={uiLang} />
-      </section>
-
       <section>
         <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.codeReference}</h3>
-        <p className="text-sm text-fly-lightgray">{response.codeReference}</p>
+        <p className="text-sm text-fly-lightgray whitespace-pre-line">{response.codeReference}</p>
       </section>
+
+      {response.officialSourceNote && (
+        <section className="border border-fly-gray/60 rounded-xl p-3">
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.officialSourceNote}</h3>
+          <p className="text-xs text-fly-lightgray whitespace-pre-line">{response.officialSourceNote}</p>
+        </section>
+      )}
+
+      {response.practicalApplication && (
+        <section>
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.practicalApplication}</h3>
+          <p className="text-sm">{response.practicalApplication}</p>
+        </section>
+      )}
+
+      {response.doNotAssume && (
+        <section>
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.doNotAssume}</h3>
+          <p className="text-sm text-fly-lightgray whitespace-pre-line">{response.doNotAssume}</p>
+        </section>
+      )}
 
       {response.planReading && (
         <section className="border border-fly-gray/60 rounded-xl p-3 space-y-1">
@@ -131,10 +155,22 @@ export function AssistantResponseCard({ response, uiLang, actions }: Props) {
         </section>
       )}
 
+      <section className="flex items-center gap-3">
+        <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide">{L.riskLevel}</h3>
+        <RiskBadge risk={response.riskLevel} lang={uiLang} />
+      </section>
+
       <section>
         <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.recommendation}</h3>
         <p className="text-sm">{response.recommendation}</p>
       </section>
+
+      {response.finalVerification && (
+        <section className="bg-fly-black/60 border border-fly-gold/50 rounded-xl p-3">
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.finalVerification}</h3>
+          <p className="text-xs text-fly-lightgray whitespace-pre-line">{response.finalVerification}</p>
+        </section>
+      )}
 
       <section className="bg-fly-black/60 border border-fly-gold/50 rounded-xl p-3">
         <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.warning}</h3>

@@ -53,6 +53,14 @@ export interface AssistantResponse {
   recommendation: string;
   warning: string;
   sourceInfo?: string;
+  // Campos del flujo de fuentes oficiales vivas (NEC/NFPA, TDLR, Houston
+  // AHJ): opcionales porque las respuestas legacy (motor mock sin match de
+  // official_sources) no los llenan. Cuando estan presentes, corresponden a
+  // las secciones 3, 4, 5 y 8 del formato pedido para app/api/queries/route.ts.
+  officialSourceNote?: string; // 3. Fuente oficial consultada o recomendada
+  practicalApplication?: string; // 4. Aplicacion practica
+  doNotAssume?: string; // 5. Cuando no asumir
+  finalVerification?: string; // 8. Verificacion final (NEC oficial, TDLR, AHJ, Master Electrician)
 }
 
 export type QueryMode = "texto" | "voz";
