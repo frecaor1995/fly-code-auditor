@@ -8,6 +8,13 @@ function useMock(): boolean {
   return process.env.USE_MOCK_AI !== "false";
 }
 
+// Expuesto para que app/api/queries/route.ts y app/api/health/query-engine/
+// route.ts puedan decidir/diagnosticar el modo (mock vs OpenAI) sin duplicar
+// la lectura de USE_MOCK_AI.
+export function isMockAiEnabled(): boolean {
+  return useMock();
+}
+
 // El motor local (mock) es siempre la ruta garantizada: no depende de ninguna
 // API paga ni servicio externo. Si USE_MOCK_AI=false y el proveedor externo
 // falla por cualquier razon (sin API key, error de red, rate limit), se cae

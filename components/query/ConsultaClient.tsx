@@ -40,6 +40,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
   const [escalated, setEscalated] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveWarning, setSaveWarning] = useState<string | null>(null);
+  const [providerNotice, setProviderNotice] = useState<string | null>(null);
 
   async function submitQuery(q: string, queryMode: "texto" | "voz") {
     if (!q.trim()) return;
@@ -48,6 +49,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
     setEscalated(false);
     setError(null);
     setSaveWarning(null);
+    setProviderNotice(null);
     console.log("[ConsultaClient] Pregunta enviada:", q);
     try {
       const res = await fetch("/api/queries", {
@@ -63,11 +65,33 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
       const data = await res.json().catch(() => null);
       console.log("[ConsultaClient] Respuesta recibida:", data);
 
-      if (res.ok && data?.query) {
-        setResult(data.query);
+      // app/api/queries/route.ts esta disenado para devolver SIEMPRE un
+      // "answer" utilizable con HTTP 200/201, incluso si Supabase o el
+      // proveedor de IA fallaron (ver providerFallback/saveError abajo): un
+      // fallo recuperable en esos servicios NUNCA debe leerse como "no hay
+      // conexion con el servidor". Solo la ausencia total de "answer" en
+      // una respuesta valida cuenta como que el servidor no pudo generar
+      // nada.
+      if (data?.answer) {
+        setResult(
+          data.query ?? {
+            id: data.queryId ?? `local-${Date.now()}`,
+            projectId: projectId || null,
+            planId: null,
+            userId: "",
+            mode: queryMode,
+            language: mode,
+            question: q,
+            response: { shortAnswer: data.answer, riskLevel: "medio", codeReference: "", checklist: [], missingQuestions: [], recommendation: "", warning: "" },
+            riskLevel: "medio",
+            requiresMasterReview: false,
+            createdAt: new Date().toISOString()
+          }
+        );
+
         // La respuesta se genero correctamente aunque el guardado en
-        // Supabase haya fallado (ver app/api/queries/route.ts): nunca se
-        // deja la pantalla vacia, solo se avisa que no quedo guardada.
+        // Supabase haya fallado: nunca se deja la pantalla vacia, solo se
+        // avisa que no quedo guardada.
         if (data.persisted === false) {
           setSaveWarning(
             uiLang === "en"
@@ -75,13 +99,26 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
               : "La respuesta fue generada, pero no pudo guardarse en la base de datos."
           );
         }
+
+        // providerFallback=true significa que el proveedor de IA (OpenAI)
+        // fallo y la respuesta vino del motor tecnico local en su lugar:
+        // es informativo, no un error, y no debe mezclarse con el aviso de
+        // guardado ni con un mensaje de "sin conexion".
+        if (data.providerFallback) {
+          setProviderNotice(
+            uiLang === "en"
+              ? "The AI provider was unavailable, so this answer came from the local technical engine."
+              : "El proveedor de IA no estaba disponible, asi que esta respuesta vino del motor tecnico local."
+          );
+        }
         return;
       }
 
-      // El servidor respondio pero sin un query utilizable (error 500,
-      // permisos, body invalido, etc.): igual mostramos una respuesta mock
-      // de respaldo generada en el cliente para no dejar el panel vacio,
-      // dejando visible el motivo real del fallo arriba.
+      // El servidor SI respondio (HTTP valido) pero sin ningun "answer"
+      // utilizable (error 400/401/403, body invalido, etc.): mostramos una
+      // respuesta mock de respaldo generada en el cliente para no dejar el
+      // panel vacio, dejando visible el motivo real del fallo arriba. Esto
+      // es distinto de "no se pudo conectar": el servidor si contesto.
       setError(
         data?.error ??
           (uiLang === "en"
@@ -90,6 +127,9 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
       );
       setResult(buildLocalFallbackQuery(q, queryMode, mode));
     } catch (err) {
+      // Este catch SOLO se alcanza si fetch() en si mismo fallo (sin
+      // respuesta HTTP alguna: red caida, DNS, timeout de conexion, CORS).
+      // Es el unico caso real de "no se pudo conectar con el servidor".
       console.error("[ConsultaClient] Error de red o inesperado:", err);
       setError(
         uiLang === "en"
@@ -178,6 +218,12 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
       {saveWarning && (
         <div className="rounded-lg border border-fly-gold bg-fly-gold/10 p-3 text-sm text-fly-gold">
           ⚠ {saveWarning}
+        </div>
+      )}
+
+      {providerNotice && (
+        <div className="rounded-lg border border-fly-lightgray/40 bg-fly-charcoal p-3 text-sm text-fly-lightgray/80">
+          ℹ {providerNotice}
         </div>
       )}
 
