@@ -2,6 +2,7 @@ import type { AssistantResponse, Language } from "../db/types";
 import { standardWarning, verifyNecMessage, type AskAssistantInput } from "./types";
 import { searchKnowledgeEntries, listKnowledgeEntries } from "../db/repos/knowledgeBase";
 import { findKnowledgeBaseMatch, type KnowledgeBaseEntry, type KnowledgeSourceType } from "../knowledge/electricalKnowledgeBase";
+import { classifyIntent } from "./intentClassifier";
 
 type Confidence = "alto" | "medio" | "bajo";
 
@@ -61,72 +62,16 @@ const CATEGORY_PLAN_SUMMARY: CategoryDef = {
 
 const CATEGORY_DEFS: CategoryDef[] = [CATEGORY_SYMBOLS, CATEGORY_CHECKLIST, CATEGORY_QUOTE, CATEGORY_PLAN_SUMMARY];
 
-// Frases que identifican una pregunta META (sobre la fuente/base interna que
-// respalda una respuesta) en vez de una pregunta tecnica electrica. Esta
-// deteccion corre ANTES que cualquier categoria tecnica: de lo contrario,
-// una pregunta como "¿esta respuesta viene de NEC, TDLR o Houston AHJ?"
-// coincide con keywords tecnicas y dispara por error una respuesta tecnica
-// de licencias o permisos en vez de explicar la fuente.
-const META_SOURCE_KEYWORDS = [
-  "fuente interna",
-  "base interna",
-  "base de conocimiento",
-  "knowledge base",
-  "internal source",
-  "source used",
-  "de donde sacas",
-  "de donde obtienes",
-  "de donde viene esta respuesta",
-  "de donde sale esta respuesta",
-  "archivo interno",
-  "categoria usaste",
-  "categoria usada",
-  "categoria detectada",
-  "que categoria",
-  "nivel de confianza",
-  "viene de nec",
-  "viene del nec",
-  "viene de tdlr",
-  "viene de houston ahj",
-  "viene de ahj",
-  "es guia general",
-  "regla tecnica",
-  "con base en que fuente",
-  "con base en que",
-  "cual es la fuente",
-  "cual es tu fuente",
-  "que fuente",
-  "bajo que bases",
-  "bajo que base",
-  "que norma usaste",
-  "que norma uso"
-];
-
-// Ademas de la lista de frases exactas de arriba, estos patrones cubren
-// variaciones de orden/redaccion que una lista de frases literales siempre
-// se queda corta en cubrir (ej. "cual es la base de tus respuestas",
-// "en que se basan tus respuestas", "de donde sale la informacion que
-// usas"). Se combinan dos ideas: palabra de "origen/base/fuente" +
-// palabra de "tu/tus/esta(s) respuesta(s)/informacion", en cualquier orden
-// y con texto intermedio.
-const META_SOURCE_PATTERNS: RegExp[] = [
-  /\bbase(s)?\b[\s\S]{0,25}\b(tu|tus|su|sus|esta|estas)\b[\s\S]{0,15}\brespuesta/,
-  /\brespuesta[\s\S]{0,25}\bbase(s)?\b/,
-  /\bfuente\b[\s\S]{0,25}\brespuesta/,
-  /\brespuesta[\s\S]{0,25}\bfuente\b/,
-  /\bde\s+donde\b[\s\S]{0,20}\b(sacas|sale|salen|saca|viene|vienen|obtienes|obtiene|obtienen)\b/,
-  /\b(te|se)\s+bas(a|an|as)\b/,
-  /\bcual\s+es\s+(la|tu)\s+(base|fuente)\b/,
-  /\bcon\s+base\s+en\s+que\b/,
-  /\bbajo\s+que\s+base/,
-  /\bknowledge\s*base\b/,
-  /\binternal\s*source\b/,
-  /\bsource\s*used\b/,
-  /\bque\s+norma\s+usa/,
-  /\bque\s+categoria\s+usa/,
-  /\barchivo\s+interno\b/,
-  /\bnivel\s+de\s+confianza\b/
-];
+// La deteccion de "pregunta meta sobre la fuente interna" vive ahora en
+// lib/ai/intentClassifier.ts#classifyIntent, compartida con
+// app/api/queries/route.ts. Antes, este archivo tenia su propia lista de
+// keywords sueltas (incluyendo "que fuente", sin ningun chequeo de
+// contenido tecnico) que causaba falsos positivos: una consulta tecnica
+// larga que en algun punto pedia "que fuente oficial fue consultada" se
+// clasificaba como meta y descartaba toda la respuesta tecnica. classifyIntent
+// da prioridad a los terminos electricos concretos sobre cualquier frase de
+// fuente/cita (ver mockAskAssistant mas abajo: la busqueda tecnica corre
+// ANTES de revisar si es una pregunta meta).
 
 function normalize(text: string): string {
   return text
@@ -137,19 +82,6 @@ function normalize(text: string): string {
 
 function includesAny(text: string, terms: string[]): boolean {
   return terms.some((term) => text.includes(normalize(term)));
-}
-
-function isSourceInfoQuestion(normalizedQuestion: string): boolean {
-  if (includesAny(normalizedQuestion, META_SOURCE_KEYWORDS)) return true;
-  return META_SOURCE_PATTERNS.some((pattern) => pattern.test(normalizedQuestion));
-}
-
-// API publica (acepta texto crudo, sin normalizar) para que otros modulos
-// -como app/api/queries/route.ts- puedan clasificar una pregunta como
-// "meta-pregunta sobre la fuente interna" sin duplicar la lista de
-// keywords ni la logica de normalizacion.
-export function isMetaSourceQuestion(question: string): boolean {
-  return isSourceInfoQuestion(normalize(question));
 }
 
 function sourceTypeToConfidence(sourceType: KnowledgeSourceType): Confidence {
@@ -376,19 +308,21 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
   const language = input.language;
   const kbNote = withKnowledgeNote(q);
 
-  // Preguntas sobre la fuente/base interna: deben resolverse ANTES que
-  // cualquier categoria tecnica (ver comentario junto a META_SOURCE_KEYWORDS).
-  // Siempre responden con la explicacion fija de la fuente interna, nunca
-  // con el fallback generico de "no tengo suficiente informacion".
-  if (isSourceInfoQuestion(q)) {
-    return buildSystemSourceExplanationResponse(language);
-  }
-
+  // Item 6 del fix de clasificacion de intencion: la busqueda de
+  // conocimiento tecnico corre SIEMPRE primero, sin ningun early return de
+  // "pregunta meta" antes de intentarla. classifyIntent ya garantiza que
+  // cualquier termino electrico concreto en la pregunta gana prioridad sobre
+  // una frase de "fuente/base" (ver lib/ai/intentClassifier.ts), pero esta
+  // busqueda tecnica se mantiene primero de todas formas como segunda capa
+  // de proteccion: si hay match en la base electrica interna, SIEMPRE se usa,
+  // sin importar el resultado de classifyIntent.
+  //
   // Base electrica interna (lib/knowledge/electricalKnowledgeBase.ts): primera
   // fuente de verdad para preguntas tecnicas por coincidencia de keywords
   // (hospitales/NEC 517, hospital grade receptacles, patient bed locations,
-  // GFCI, AFCI, grounding, bonding, EV chargers, panel upgrade, load
-  // calculation, conduit fill, box fill, Houston AHJ, TDLR, NFPA 70E, NFPA 99).
+  // GFCI, AFCI, grounding, bonding, EV chargers, panel upgrade, feeders,
+  // load calculation, conduit fill, box fill, Houston AHJ, TDLR, NFPA 70E,
+  // NFPA 99).
   const kbEntry = findKnowledgeBaseMatch(q);
   if (kbEntry) {
     return buildResponseFromKnowledgeEntry(kbEntry, language);
@@ -481,6 +415,18 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
       recommendation: "Pedir mas informacion: sube el plano para poder hacer una lectura preliminar.",
       sourceInfo: sourceInfoForDetected(language, { source: "legacy", def: CATEGORY_PLAN_SUMMARY })
     });
+  }
+
+  // Solo aqui, DESPUES de intentar toda busqueda de conocimiento tecnico
+  // (base electrica interna + categorias legacy de arriba), se revisa si la
+  // pregunta es una meta-pregunta sobre el origen de las respuestas del
+  // sistema. classifyIntent ya da prioridad a cualquier termino electrico
+  // concreto sobre esta clasificacion (ver lib/ai/intentClassifier.ts), asi
+  // que llegar hasta aqui con intent === "meta_source" significa que la
+  // pregunta no tiene contenido tecnico y si es, genuinamente, una pregunta
+  // sobre la fuente interna.
+  if (classifyIntent(input.question).intent === "meta_source") {
+    return buildSystemSourceExplanationResponse(language);
   }
 
   // Fallback: la pregunta no coincide con ninguna categoria de la base interna.

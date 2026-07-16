@@ -14,7 +14,7 @@ import {
 } from "@/lib/db/dbAdapter";
 import { normalizeForMatch } from "@/lib/knowledge/electricalKnowledgeBase";
 import { askAssistant } from "@/lib/ai";
-import { isMetaSourceQuestion } from "@/lib/ai/mockAssistant";
+import { classifyIntent } from "@/lib/ai/intentClassifier";
 import { standardWarning, verifyNecMessage } from "@/lib/ai/types";
 import type { AssistantResponse, Language, QueryMode } from "@/lib/db/types";
 
@@ -177,19 +177,42 @@ const NEC_NOT_LOADED_ES =
 const NEC_NOT_LOADED_EN =
   "I do not have the exact article loaded in the internal base. Verify in the official NFPA 70 / NEC and with the AHJ.";
 
-function necSectionText(language: Language, knowledgeMatch: KnowledgeEntryMatch | null, topics: TopicFlags): string {
+// Una respuesta tiene una cita "especifica" cuando su codeReference trae
+// algo mas que el disclaimer generico de verifyNecMessage (los matches de
+// knowledge_entries local -lib/knowledge/electricalKnowledgeBase.ts- ya
+// arman codeReference como "<articulos especificos>. <verifyNecMessage>").
+// Sin este chequeo, necSectionText de abajo pisaba SIEMPRE ese contenido ya
+// citado con el mensaje generico (o con NEC_NOT_LOADED), descartando una
+// cita NEC real que la app si tenia cargada.
+function hasSpecificCitation(codeReference: string, language: Language): boolean {
+  const trimmed = codeReference.trim();
+  if (!trimmed) return false;
+  return trimmed !== verifyNecMessage(language);
+}
+
+function necSectionText(
+  language: Language,
+  knowledgeMatch: KnowledgeEntryMatch | null,
+  topics: TopicFlags,
+  existingCodeReference: string
+): string {
   if (knowledgeMatch?.necArticles.length) {
     return `${knowledgeMatch.necArticles.join(", ")}. ${verifyNecMessage(language)}`;
   }
   if (knowledgeMatch?.codeReferences) {
     return `${knowledgeMatch.codeReferences}. ${verifyNecMessage(language)}`;
   }
+  // Preserva una cita especifica ya generada (ej. por un match de la base
+  // electrica interna local) en vez de reemplazarla por un mensaje generico.
+  if (hasSpecificCitation(existingCodeReference, language)) {
+    return existingCodeReference;
+  }
   if (topics.forceOfficial) {
     if (language === "en") return NEC_NOT_LOADED_EN;
     if (language === "es") return NEC_NOT_LOADED_ES;
     return `${NEC_NOT_LOADED_ES}\n${NEC_NOT_LOADED_EN}`;
   }
-  return verifyNecMessage(language);
+  return existingCodeReference || verifyNecMessage(language);
 }
 
 // --- Seccion 4: aplicacion practica ------------------------------------------
@@ -278,17 +301,24 @@ export async function POST(req: NextRequest) {
 
   const topics = detectTopics(question);
 
-  // 1) Base tecnica REAL primero: public.knowledge_entries en Supabase (ver
-  // lib/db/dbAdapter.ts#findKnowledgeByQuestion). Solo si no hay coincidencia
-  // ahi se usa el motor mock local como fallback controlado (que a su vez
-  // tiene su propia base local + categorias legacy + "no tengo suficiente
-  // informacion" como ultimo recurso).
-  const knowledgeMatch = await findKnowledgeByQuestion(question);
+  // Clasificacion de intencion UNICA para toda la ruta (ver
+  // lib/ai/intentClassifier.ts): la intencion tecnica SIEMPRE gana sobre
+  // meta_source cuando la pregunta contiene algun termino electrico
+  // concreto, sin importar si esa misma pregunta tambien pide articulos,
+  // fuentes o citas. Solo cuando NO hay ningun termino tecnico y la
+  // pregunta coincide con una frase explicita sobre el origen de las
+  // respuestas del sistema, la intencion es "meta_source".
+  const intentResult = classifyIntent(question);
+  const isMetaQuestion = intentResult.intent === "meta_source";
 
-  // Preguntas meta sobre la fuente interna se resuelven aparte (explicacion
-  // fija de que arma la base interna), sin pasar por el flujo de fuentes
-  // oficiales de abajo.
-  const isMetaQuestion = isMetaSourceQuestion(question);
+  // Base tecnica REAL primero: public.knowledge_entries en Supabase (ver
+  // lib/db/dbAdapter.ts#findKnowledgeByQuestion). Esta busqueda se hace
+  // SIEMPRE (nunca se descarta por una clasificacion de intencion) y solo
+  // si no hay coincidencia ahi se usa el motor mock local como fallback
+  // controlado (que a su vez busca primero en su propia base electrica
+  // local antes de considerar cualquier respuesta meta - ver
+  // lib/ai/mockAssistant.ts#mockAskAssistant).
+  const knowledgeMatch = await findKnowledgeByQuestion(question);
 
   let response: AssistantResponse;
   let generationErrorMessage: string | null = null;
@@ -339,10 +369,17 @@ export async function POST(req: NextRequest) {
     }
 
     // Item 6: si la pregunta prioriza fuentes oficiales explicitamente
-    // (forceOfficial) y no hubo match en knowledge_entries, la respuesta no
-    // debe sonar a fallback generico: se reemplaza la respuesta corta por
-    // una que remite directamente a official_sources.
-    if (topics.forceOfficial && !generationErrorMessage) {
+    // (forceOfficial) y la respuesta del motor mock NO trae ya una cita
+    // especifica (es decir, cayo en el fallback generico "no tengo
+    // suficiente informacion" porque tampoco hubo match en la base electrica
+    // local), se reemplaza la respuesta corta por una que remite
+    // directamente a official_sources. Si el motor mock SI encontro un
+    // match tecnico real (ej. un feeder/subpanel con aluminio, ver
+    // lib/knowledge/electricalKnowledgeBase.ts), esa respuesta tecnica NUNCA
+    // se descarta, aunque la pregunta tambien mencione NEC/TDLR/Houston AHJ:
+    // descartarla aqui seria el mismo bug raiz (reemplazar contenido tecnico
+    // real por texto generico) que motivo este fix.
+    if (topics.forceOfficial && !generationErrorMessage && !hasSpecificCitation(response.codeReference, language)) {
       response = { ...response, shortAnswer: buildForcedOfficialShortAnswer(language, knowledgeMatch) };
     }
 
@@ -374,7 +411,7 @@ export async function POST(req: NextRequest) {
 
     response = {
       ...response,
-      codeReference: necSectionText(language, knowledgeMatch, topics),
+      codeReference: necSectionText(language, knowledgeMatch, topics, response.codeReference),
       officialSourceNote: buildOfficialSourceNote(sourcesToShow, language),
       practicalApplication: practicalApplicationText(knowledgeMatch, response.recommendation),
       doNotAssume: doNotAssumeText(language, knowledgeMatch),
@@ -416,7 +453,15 @@ export async function POST(req: NextRequest) {
     saveError,
     category,
     source_used: sourceUsed,
-    risk_level: mapRiskLevelToDb(response.riskLevel)
+    risk_level: mapRiskLevelToDb(response.riskLevel),
+    // Campos de diagnostico del clasificador de intencion (ver
+    // lib/ai/intentClassifier.ts): permiten verificar en la respuesta misma
+    // por que una consulta se trato como tecnica o como meta_source, sin
+    // tener que inspeccionar logs del servidor.
+    detectedIntent: intentResult.intent,
+    matchedRule: intentResult.matchedRule,
+    technicalTermsDetected: intentResult.technicalTermsDetected,
+    metaSourceDetected: intentResult.metaSourceDetected
   };
 
   if (generationErrorMessage) {

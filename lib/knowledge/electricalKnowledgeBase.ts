@@ -431,6 +431,87 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     warningEn: "General internal guide; verify the exact NEC article and Master Electrician approval before installing."
   },
   {
+    id: "kb-feeder-subpanel-aluminum",
+    category: "Alimentador a tablero secundario / conductores de aluminio (NEC Article 215)",
+    keywords: [
+      "alimentador",
+      "feeder",
+      "tablero secundario",
+      "subpanel",
+      "sub panel",
+      "panel secundario",
+      "aluminio",
+      "aluminum",
+      "conductor de aluminio",
+      "conductores de aluminio",
+      "neutro aislado",
+      "isolated neutral",
+      "barra de tierra separada",
+      "separate ground bar",
+      "caida de voltaje",
+      "voltage drop",
+      "calibre de alimentador",
+      "feeder conductor",
+      "alimentar un tablero",
+      "alimentar el tablero",
+      "acometida o alimentador"
+    ],
+    codeReference:
+      "NEC Article 215 (Feeders), 250.24(A)(5)/408.40-408.41 (neutro y bonding en tableros alimentados por feeder), Table 310.16 (ampacidad), 110.14(A) (terminales para aluminio), 300.5/300.9 (ubicaciones humedas) e Informational Note de caida de voltaje en 210.19(A)/215.2(A)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "Un tramo de conductores que sale DESPUES del disconnect/medio de desconexion principal hacia otro tablero, dentro de la misma vivienda, se clasifica como alimentador (feeder) bajo NEC Article 215, no como acometida (la acometida es el tramo hasta el primer medio de desconexion del servicio). Para un alimentador monofasico 120/240V a un tablero secundario normalmente se requieren 4 conductores: dos conductores 'calientes', un neutro (conductor puesto a tierra) y un conductor de puesta a tierra de equipo (EGC) dedicado. En el tablero secundario, el neutro debe quedar AISLADO del gabinete (barra de neutro flotante, sin bonding jumper), y el EGC debe conectarse a una barra de tierra separada, unida (bonded) al gabinete: el neutro y la tierra solo se unen en el primer medio de desconexion del servicio, nunca aguas abajo en un panel alimentado por feeder (NEC 250.24(A)(5) y 408.40/408.41). La ampacidad del conductor de aluminio se determina con la tabla de ampacidad del NEC (Table 310.16) segun el tipo de aislamiento (por ejemplo THWN-2/XHHW-2), la temperatura ambiente y el numero de conductores portadores de corriente en la misma tuberia (derating); ademas, los terminales del disconnect, el breaker y el tablero deben estar listados para conductor de aluminio (marcado AL o AL9CU) segun NEC 110.14(A). La proteccion contra sobrecorriente del alimentador se dimensiona para no exceder la ampacidad del conductor (NEC Article 215.3), coordinada con el rating del disconnect principal. A mayor distancia (por ejemplo 75 pies), se debe revisar la caida de voltaje: el NEC no la exige como regla dura en la mayoria de los casos, pero su Informational Note (210.19(A)/215.2(A)) recomienda no exceder 3% en el alimentador y 5% total (alimentador + circuito ramal); con aluminio (mayor resistencia que el cobre) y mas distancia, esto puede obligar a subir de calibre respecto al minimo por ampacidad. Si la tuberia va expuesta al exterior o enterrada, los conductores deben estar listados para ubicacion humeda (NEC 300.5 para instalaciones enterradas y 300.9 para tuberias en ubicaciones humedas). No es posible confirmar el calibre exacto de conductor y de tierra sin: el tipo de aislamiento especifico del conductor de aluminio, la temperatura ambiente del recorrido, el numero de conductores portadores de corriente en la misma tuberia, el rating de temperatura de los terminales del disconnect/tablero, y si el recorrido es expuesto, enterrado o dentro de la vivienda. Estos articulos NEC son referencia general de la base interna (no el texto oficial completo) y deben verificarse contra el NEC oficial vigente, el Master Electrician y el AHJ correspondiente antes de dimensionar o instalar el alimentador.",
+    shortAnswerEn:
+      "A conductor run that leaves AFTER the main disconnect/service disconnecting means toward another panel, within the same dwelling, is classified as a feeder under NEC Article 215, not as the service (the service is the run up to the first service disconnecting means). For a single-phase 120/240V feeder to a subpanel, 4 conductors are normally required: two 'hot' conductors, a neutral (grounded conductor), and a dedicated equipment grounding conductor (EGC). At the subpanel, the neutral must be ISOLATED from the enclosure (floating neutral bar, no bonding jumper), and the EGC must connect to a separate ground bar bonded to the enclosure: the neutral and ground are only bonded together at the first service disconnecting means, never downstream at a feeder-fed panel (NEC 250.24(A)(5) and 408.40/408.41). The aluminum conductor's ampacity is determined from the NEC ampacity table (Table 310.16) based on insulation type (e.g. THWN-2/XHHW-2), ambient temperature, and the number of current-carrying conductors in the same raceway (derating); in addition, the disconnect's, breaker's, and panel's terminals must be listed for aluminum conductors (marked AL or AL9CU) per NEC 110.14(A). Feeder overcurrent protection is sized to not exceed the conductor's ampacity (NEC Article 215.3), coordinated with the main disconnect's rating. At longer distances (e.g. 75 feet), voltage drop should be reviewed: the NEC does not mandate it as a hard rule in most cases, but its Informational Note (210.19(A)/215.2(A)) recommends not exceeding 3% on the feeder and 5% total (feeder + branch circuit); with aluminum (higher resistance than copper) and more distance, this can require upsizing beyond the ampacity-only minimum. If the raceway runs exposed outdoors or underground, conductors must be listed for wet locations (NEC 300.5 for underground installations and 300.9 for raceways in wet locations). The exact conductor and grounding conductor size cannot be confirmed without: the aluminum conductor's specific insulation type, the ambient temperature of the run, the number of current-carrying conductors in the same raceway, the temperature rating of the disconnect's/panel's terminals, and whether the run is exposed, underground, or inside the dwelling. These NEC articles are general references from the internal base (not the full official text) and must be verified against the official current NEC, the Master Electrician, and the applicable AHJ before sizing or installing the feeder.",
+    riskLevel: "alto",
+    checklistEs: [
+      "Confirmar que el tramo despues del disconnect principal se trata como alimentador (NEC Article 215), no como acometida",
+      "Confirmar 4 conductores: dos calientes, un neutro y un EGC dedicado",
+      "Verificar que el neutro quede aislado del gabinete en el tablero secundario (barra de neutro flotante)",
+      "Verificar barra de tierra separada, unida (bonded) al gabinete del tablero secundario",
+      "Confirmar tipo de aislamiento del conductor de aluminio (ej. THWN-2/XHHW-2) y su ampacidad en Table 310.16",
+      "Confirmar terminales del disconnect, el breaker y el tablero listados para aluminio (AL o AL9CU)",
+      "Confirmar que la proteccion de sobrecorriente del alimentador este coordinada con el disconnect principal",
+      "Calcular caida de voltaje para la distancia real y ajustar calibre si excede el 3% recomendado en el alimentador",
+      "Confirmar si la tuberia es exterior o enterrada y usar conductor listado para ubicacion humeda",
+      "Confirmar permiso e inspeccion con el AHJ correspondiente antes de instalar"
+    ],
+    checklistEn: [
+      "Confirm the run after the main disconnect is treated as a feeder (NEC Article 215), not as the service",
+      "Confirm 4 conductors: two hots, a neutral, and a dedicated EGC",
+      "Verify the neutral is isolated from the enclosure at the subpanel (floating neutral bar)",
+      "Verify a separate ground bar, bonded to the subpanel's enclosure",
+      "Confirm the aluminum conductor's insulation type (e.g. THWN-2/XHHW-2) and its ampacity per Table 310.16",
+      "Confirm the disconnect's, breaker's, and panel's terminals are listed for aluminum (AL or AL9CU)",
+      "Confirm the feeder's overcurrent protection is coordinated with the main disconnect",
+      "Calculate voltage drop for the actual distance and upsize if it exceeds the recommended 3% on the feeder",
+      "Confirm whether the raceway is exposed outdoors or underground and use conductor listed for wet locations",
+      "Confirm permit and inspection with the applicable AHJ before installing"
+    ],
+    missingQuestionsEs: [
+      "Tipo de aislamiento exacto del conductor de aluminio disponible o especificado",
+      "Temperatura ambiente del recorrido de tuberia",
+      "Numero de conductores portadores de corriente en la misma tuberia (para derating)",
+      "Rating de temperatura de los terminales del disconnect y del tablero",
+      "Si el recorrido es expuesto, enterrado o dentro de la vivienda"
+    ],
+    missingQuestionsEn: [
+      "Exact insulation type of the available/specified aluminum conductor",
+      "Ambient temperature of the raceway run",
+      "Number of current-carrying conductors in the same raceway (for derating)",
+      "Temperature rating of the disconnect's and panel's terminals",
+      "Whether the run is exposed, underground, or inside the dwelling"
+    ],
+    recommendationEs:
+      "Escalar al Master Electrician para el calculo final de calibre, derating y caida de voltaje antes de cotizar o instalar; confirmar el requisito de permiso con el AHJ correspondiente.",
+    recommendationEn:
+      "Escalate to the Master Electrician for the final conductor sizing, derating, and voltage drop calculation before quoting or installing; confirm the permit requirement with the applicable AHJ.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 2023 y practica general; no reemplaza el texto oficial completo del NEC. El calibre final de conductor y de tierra, y la aprobacion del alimentador, requieren verificacion del Master Electrician y del AHJ antes de instalar.",
+    warningEn:
+      "Preliminary internal guide based on NEC 2023 and general practice; it does not replace the full official NEC text. The final conductor and grounding conductor size, and feeder approval, require Master Electrician and AHJ verification before installing."
+  },
+  {
     id: "kb-panel-upgrade",
     category: "Panel Upgrade",
     keywords: ["panel upgrade", "cambiar panel", "upgrade de panel", "actualizacion de panel", "cambio de panel", "150a", "200a"],
