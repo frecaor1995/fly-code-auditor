@@ -41,6 +41,16 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
   const [error, setError] = useState<string | null>(null);
   const [saveWarning, setSaveWarning] = useState<string | null>(null);
   const [providerNotice, setProviderNotice] = useState<string | null>(null);
+  // Item 8: el backend (app/api/queries/route.ts) ya resuelve estos 4
+  // estados por el usuario, para que el frontend nunca tenga que adivinar
+  // por que llego una respuesta: "backed" (match real de knowledge_entries/
+  // base local, o OpenAI exitoso), "validated_fallback" (el proveedor de IA
+  // fallo pero el motor local encontro una coincidencia validada),
+  // "unverified" (ni Supabase/base local ni OpenAI produjeron una
+  // coincidencia confiable: el mensaje fijo de "sin informacion
+  // verificable"). answerKind ausente (fallback 100% local del cliente, sin
+  // respuesta del servidor) se trata igual que "unverified".
+  const [answerKind, setAnswerKind] = useState<"backed" | "validated_fallback" | "unverified" | null>(null);
 
   async function submitQuery(q: string, queryMode: "texto" | "voz") {
     if (!q.trim()) return;
@@ -50,6 +60,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
     setError(null);
     setSaveWarning(null);
     setProviderNotice(null);
+    setAnswerKind(null);
     console.log("[ConsultaClient] Pregunta enviada:", q);
     try {
       const res = await fetch("/api/queries", {
@@ -88,6 +99,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
             createdAt: new Date().toISOString()
           }
         );
+        setAnswerKind(data.answerKind ?? (data.unverified ? "unverified" : "backed"));
 
         // La respuesta se genero correctamente aunque el guardado en
         // Supabase haya fallado: nunca se deja la pantalla vacia, solo se
@@ -125,6 +137,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
             ? "The server could not generate a response. Showing a local fallback answer."
             : "El servidor no pudo generar una respuesta. Mostrando una respuesta de respaldo local.")
       );
+      setAnswerKind("unverified");
       setResult(buildLocalFallbackQuery(q, queryMode, mode));
     } catch (err) {
       // Este catch SOLO se alcanza si fetch() en si mismo fallo (sin
@@ -136,6 +149,7 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
           ? "Could not reach the server. Showing a local fallback answer."
           : "No se pudo conectar con el servidor. Mostrando una respuesta de respaldo local."
       );
+      setAnswerKind("unverified");
       setResult(buildLocalFallbackQuery(q, queryMode, mode));
     } finally {
       setLoading(false);
@@ -227,30 +241,54 @@ export function ConsultaClient({ projects }: { projects: Project[] }) {
         </div>
       )}
 
-      {result && (
-        <AssistantResponseCard
-          response={result.response}
-          uiLang={uiLang}
-          actions={
-            <>
-              {result.requiresMasterReview && !escalated && (
-                <p className="text-xs text-fly-gold">
-                  ⚠ {uiLang === "en" ? "Automatically flagged for Master review due to risk level." : "Marcado automaticamente para revision del Master por el nivel de riesgo."}
-                </p>
-              )}
-              <div className="grid grid-cols-2 gap-2">
-                <BigActionButton variant="secondary" onClick={escalate} disabled={escalated}>
-                  {escalated ? t("action_escalated") : t("action_escalate")}
-                </BigActionButton>
-                <Link href={`/reportes/${result.id}/print`}>
-                  <BigActionButton variant="ghost" type="button">
-                    {t("action_generateReport")}
-                  </BigActionButton>
-                </Link>
-              </div>
-            </>
-          }
-        />
+      {/* Item 10: ninguna respuesta incorrecta se presenta como tecnica. Si
+          answerKind es "unverified" (ni knowledge_entries/base local ni
+          OpenAI produjeron una coincidencia confiable), se muestra un aviso
+          claro en vez de la tarjeta completa de 8 secciones -que quedaria
+          practicamente vacia igual, porque el backend no le agrega
+          checklist/codeReference/citas a una respuesta unverified. */}
+      {result && answerKind === "unverified" ? (
+        <div className="rounded-lg border border-fly-gold bg-fly-gold/10 p-4 space-y-2">
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide">
+            {uiLang === "en" ? "No verifiable information" : "Sin informacion verificable"}
+          </h3>
+          <p className="text-sm">{result.response.shortAnswer}</p>
+        </div>
+      ) : (
+        result && (
+          <>
+            {answerKind === "validated_fallback" && (
+              <p className="text-xs text-fly-lightgray/60">
+                {uiLang === "en"
+                  ? "Validated fallback: local technical engine match."
+                  : "Fallback validado: coincidencia del motor tecnico local."}
+              </p>
+            )}
+            <AssistantResponseCard
+              response={result.response}
+              uiLang={uiLang}
+              actions={
+                <>
+                  {result.requiresMasterReview && !escalated && (
+                    <p className="text-xs text-fly-gold">
+                      ⚠ {uiLang === "en" ? "Automatically flagged for Master review due to risk level." : "Marcado automaticamente para revision del Master por el nivel de riesgo."}
+                    </p>
+                  )}
+                  <div className="grid grid-cols-2 gap-2">
+                    <BigActionButton variant="secondary" onClick={escalate} disabled={escalated}>
+                      {escalated ? t("action_escalated") : t("action_escalate")}
+                    </BigActionButton>
+                    <Link href={`/reportes/${result.id}/print`}>
+                      <BigActionButton variant="ghost" type="button">
+                        {t("action_generateReport")}
+                      </BigActionButton>
+                    </Link>
+                  </div>
+                </>
+              }
+            />
+          </>
+        )
       )}
     </div>
   );

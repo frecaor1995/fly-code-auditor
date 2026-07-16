@@ -372,6 +372,19 @@ async function generateAssistantResponse(question: string, language: Language): 
   }
 }
 
+// Item 8 del pedido: el frontend debe distinguir 4 estados. Se resuelven a
+// partir de 2 senales que ya calcula esta ruta: response.unverified (nunca
+// hay contenido tecnico real) y providerFallback (el proveedor de IA fallo
+// y se uso el motor local en su lugar). "backed" cubre tanto un match real
+// de knowledge_entries/base local como una respuesta exitosa de OpenAI.
+type AnswerKind = "backed" | "validated_fallback" | "unverified";
+
+function computeAnswerKind(response: AssistantResponse, providerFallback: boolean): AnswerKind {
+  if (response.unverified) return "unverified";
+  if (providerFallback) return "validated_fallback";
+  return "backed";
+}
+
 // Fila "en memoria" (no persistida) usada cuando el guardado en Supabase
 // falla o lanza de forma inesperada: la respuesta ya generada en el paso
 // (c) SIEMPRE se devuelve al usuario, con o sin persistencia.
@@ -466,7 +479,11 @@ export async function POST(req: NextRequest) {
       // directamente a official_sources. Si SI hubo match tecnico real
       // (ej. un feeder/subpanel con aluminio), esa respuesta nunca se
       // descarta, aunque la pregunta tambien mencione NEC/TDLR/Houston AHJ.
-      if (topics.forceOfficial && !hasSpecificCitation(response.codeReference, language)) {
+      // response.unverified=true es el mensaje fijo obligatorio ("No fue
+      // posible generar una respuesta tecnica respaldada..."): nunca se
+      // reemplaza por otro texto, ni siquiera por el de forceOfficial (que
+      // tambien es honesto, pero cambiaria la redaccion exacta requerida).
+      if (topics.forceOfficial && !response.unverified && !hasSpecificCitation(response.codeReference, language)) {
         response = { ...response, shortAnswer: buildForcedOfficialShortAnswer(language, knowledgeMatch) };
       }
 
@@ -483,8 +500,10 @@ export async function POST(req: NextRequest) {
     // (respuesta corta / NEC-regulacion aplicable / fuente oficial /
     // aplicacion practica / cuando no asumir / checklist de campo / riesgo /
     // verificacion final). No aplica a preguntas meta sobre la fuente
-    // interna, que ya tienen su propia respuesta fija completa.
-    if (!isMetaQuestion) {
+    // interna (respuesta fija completa) ni a respuestas unverified (el
+    // mensaje fijo de "sin informacion verificable" se devuelve solo, sin
+    // ninguna estructura tecnica adicional alrededor).
+    if (!isMetaQuestion && !response.unverified) {
       const sourceTypes = relevantSourceTypesFor(topics);
       const relevantSources = allOfficialSources.filter((s) => sourceTypes.includes(s.sourceType));
       const sourcesToShow = relevantSources.length > 0 ? relevantSources : allOfficialSources.slice(0, 3);
@@ -548,6 +567,8 @@ export async function POST(req: NextRequest) {
         sourceUsed,
         source_used: sourceUsed,
         providerFallback,
+        answerKind: computeAnswerKind(response, providerFallback),
+        unverified: Boolean(response.unverified),
         saveError,
         providerError,
         category,
@@ -578,6 +599,8 @@ export async function POST(req: NextRequest) {
           sourceUsed: FALLBACK_SOURCE_USED,
           source_used: FALLBACK_SOURCE_USED,
           providerFallback: true,
+          answerKind: "unverified",
+          unverified: true,
           saveError: "No se pudo completar el flujo normal; no se intento guardar esta consulta.",
           providerError: safeErrorMessage(fatalError, "Error interno inesperado."),
           category: "fatal_fallback",

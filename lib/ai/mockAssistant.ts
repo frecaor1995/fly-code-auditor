@@ -1,6 +1,6 @@
 import type { AssistantResponse, Language } from "../db/types";
 import { standardWarning, verifyNecMessage, type AskAssistantInput } from "./types";
-import { searchKnowledgeEntries, listKnowledgeEntries } from "../db/repos/knowledgeBase";
+import { listKnowledgeEntries } from "../db/repos/knowledgeBase";
 import { findKnowledgeBaseMatch, type KnowledgeBaseEntry, type KnowledgeSourceType } from "../knowledge/electricalKnowledgeBase";
 import { classifyIntent } from "./intentClassifier";
 
@@ -110,12 +110,6 @@ function base(language: Language, overrides: Partial<AssistantResponse>): Assist
     warning: standardWarning(language),
     ...overrides
   };
-}
-
-function withKnowledgeNote(question: string): string | undefined {
-  const hits = searchKnowledgeEntries(question);
-  if (hits.length === 0) return undefined;
-  return `Referencia interna disponible: "${hits[0].title}" (${hits[0].category}). Consulta la Base de Conocimiento para el detalle completo.`;
 }
 
 // Deja explicito, en cada respuesta, que el motor NO consulta el texto
@@ -306,7 +300,6 @@ function buildResponseFromKnowledgeEntry(entry: KnowledgeBaseEntry, language: La
 export async function mockAskAssistant(input: AskAssistantInput): Promise<AssistantResponse> {
   const q = normalize(input.question);
   const language = input.language;
-  const kbNote = withKnowledgeNote(q);
 
   // Item 6 del fix de clasificacion de intencion: la busqueda de
   // conocimiento tecnico corre SIEMPRE primero, sin ningun early return de
@@ -429,35 +422,31 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
     return buildSystemSourceExplanationResponse(language);
   }
 
-  // Fallback: la pregunta no coincide con ninguna categoria de la base interna.
-  // No se inventa una respuesta tecnica; se informa la limitacion explicitamente
-  // y se deja claro que la base interna no reemplaza el texto oficial completo.
-  const NO_MATCH_ES =
-    "No tengo suficiente informacion en la base interna de Fly Electric Solutions LLC (basada en NEC 2023, TDLR, Houston AHJ, NFPA 70E y NFPA 99) para responder esta pregunta con seguridad. Esta base interna no reemplaza el texto oficial completo de esos codigos: verifique el NEC oficial, TDLR, Houston AHJ o consulte directamente al Master Electrician.";
-  const NO_MATCH_EN =
-    "I do not have enough information in Fly Electric Solutions LLC's internal base (built from NEC 2023, TDLR, Houston AHJ, NFPA 70E, and NFPA 99) to answer this question safely. This internal base does not replace the full official text of those codes: please verify with the official NEC, TDLR, Houston AHJ, or consult the Master Electrician directly.";
+  // Fallback: ninguna entrada de la base electrica interna (ni de Supabase,
+  // ver app/api/queries/route.ts) supero el score minimo de confianza del
+  // motor de matching (lib/knowledge/matchEngine.ts). A diferencia de la
+  // version anterior, esto NO reutiliza contenido generico ni relacionado
+  // solo por una palabra (checklist/missingQuestions genericos, o el
+  // "Referencia interna disponible" de kbNote): se devuelve el mensaje fijo
+  // exacto, marcado con unverified=true para que app/api/queries/route.ts y
+  // el frontend lo muestren como "sin informacion verificable", nunca como
+  // si fuera una respuesta tecnica respaldada.
+  const NOT_BACKED_ES = "No fue posible generar una respuesta técnica respaldada. Intente nuevamente o consulte la fuente oficial.";
+  const NOT_BACKED_EN = "It was not possible to generate a backed technical answer. Try again or consult the official source.";
 
   return base(language, {
-    shortAnswer: NO_MATCH_ES,
-    englishSummary: language !== "es" ? NO_MATCH_EN : undefined,
+    shortAnswer: NOT_BACKED_ES,
+    englishSummary: language !== "es" ? NOT_BACKED_EN : undefined,
     riskLevel: "bajo",
-    codeReference: verifyNecMessage(language),
-    checklist: ["Recopilar mas detalles tecnicos de la consulta", "Confirmar ubicacion y tipo de trabajo"],
-    missingQuestions: [
-      "Ciudad / tipo de servicio",
-      "Amperaje / breaker involucrado",
-      "Tipo de conductor",
-      "Carga o equipo involucrado",
-      "Distancia de instalacion",
-      "Tipo de ocupacion"
-    ],
-    recommendation: kbNote
-      ? `Pedir mas informacion antes de dar una recomendacion tecnica especifica. ${kbNote}`
-      : "Pedir mas informacion antes de dar una recomendacion tecnica especifica.",
+    codeReference: "",
+    checklist: [],
+    missingQuestions: [],
+    recommendation: "",
+    unverified: true,
     sourceInfo: buildBaseUsadaBlock(language, {
       archivoInterno: GENERIC_INTERNAL_FILE,
-      categoria: "No identificada (pregunta general sin categoria especifica)",
-      referenciaNec: "No aplica un articulo NEC/NFPA especifico para esta pregunta",
+      categoria: "No identificada (ninguna entrada supero el score minimo de confianza)",
+      referenciaNec: "No aplica: no hay coincidencia validada para esta pregunta",
       confianza: "bajo",
       masterDebeVerificar: "Determinar junto con el Master Electrician cual es la regla NEC, TDLR, Houston AHJ o NFPA aplicable antes de proceder."
     })

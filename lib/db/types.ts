@@ -61,6 +61,14 @@ export interface AssistantResponse {
   practicalApplication?: string; // 4. Aplicacion practica
   doNotAssume?: string; // 5. Cuando no asumir
   finalVerification?: string; // 8. Verificacion final (NEC oficial, TDLR, AHJ, Master Electrician)
+  // true SOLO cuando ninguna entrada de conocimiento (local o Supabase)
+  // supero el score minimo de confianza del motor de matching (ver
+  // lib/knowledge/matchEngine.ts) y el proveedor de IA tampoco genero una
+  // respuesta: shortAnswer es el mensaje fijo "no fue posible generar una
+  // respuesta tecnica respaldada", nunca contenido tecnico real. Usado por
+  // app/api/queries/route.ts y el frontend para mostrar este caso como
+  // "sin informacion verificable" en vez de como una respuesta tecnica.
+  unverified?: boolean;
 }
 
 export type QueryMode = "texto" | "voz";

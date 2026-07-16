@@ -1,4 +1,7 @@
 import type { RiskLevel } from "../db/types";
+import { findBestMatch, normalizeForMatch, type MatchCategory } from "./matchEngine";
+
+export type { MatchCategory };
 
 // Base de conocimiento electrica interna de Fly Electric Solutions LLC.
 //
@@ -12,13 +15,28 @@ import type { RiskLevel } from "../db/types";
 //   Electrician con licencia TDLR, ni la aprobacion del AHJ local.
 // - No cargar aqui PDFs, capturas ni copias literales de codigos con
 //   derechos de autor (NEC/NFPA son publicaciones protegidas de NFPA).
+//
+// IMPORTANTE (matching): cada entrada declara una matchCategory obligatoria
+// (ver lib/knowledge/matchEngine.ts). El match ya NO se decide por una sola
+// palabra clave generica: se calcula un score ponderado por entrada, sujeto
+// a un minimo, a gates de categoria (ej. "healthcare" exige mencionar
+// hospital/paciente/clinica) y a penalizaciones por terminos contradictorios
+// (ej. "exterior" penaliza fuertemente cualquier entrada de healthcare). Si
+// ninguna entrada supera el umbral de confianza, findKnowledgeBaseMatch
+// devuelve null: no se reutiliza contenido generico ni relacionado solo por
+// una palabra.
 
 export type KnowledgeSourceType = "regla_tecnica_general" | "guia_interna_general" | "checklist_operativo";
 
 export interface KnowledgeBaseEntry {
   id: string;
+  matchCategory: MatchCategory;
   category: string;
   keywords: string[];
+  // Terminos contradictorios especificos de esta entrada (ademas de los que
+  // ya aplica el gate de su categoria en matchEngine.ts): si aparecen en la
+  // pregunta, penalizan fuertemente el score de esta entrada en particular.
+  excludeTerms?: string[];
   codeReference: string;
   sourceType: KnowledgeSourceType;
   shortAnswerEs: string;
@@ -37,6 +55,7 @@ export interface KnowledgeBaseEntry {
 export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   {
     id: "kb-healthcare-517",
+    matchCategory: "healthcare",
     category: "Healthcare / Hospitales (NEC 517)",
     keywords: [
       "hospital",
@@ -104,6 +123,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-healthcare-lighting",
+    matchCategory: "healthcare",
     category: "Healthcare / Iluminacion hospitalaria (NEC 517)",
     keywords: [
       "iluminacion hospitalaria",
@@ -117,7 +137,16 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "iluminacion de emergencia",
       "emergency lighting",
       "egress lighting",
-      "iluminacion de salida"
+      "iluminacion de salida",
+      // Terminos sueltos de bajo peso (1pt cada uno): por si solos nunca
+      // alcanzan minimumScore, pero permiten que preguntas como "que
+      // iluminacion se usa en hospitales" (que no arma ninguna de las
+      // frases exactas de arriba) combinen dos senales validas -
+      // iluminacion + hospital- y superen el umbral igual, sin depender de
+      // un pre-chequeo hardcodeado de una sola palabra.
+      "iluminacion",
+      "hospital",
+      "hospitales"
     ],
     codeReference: "NEC 2023 Article 517 (Health Care Facilities, iluminacion en patient care areas) y NFPA 99 (life safety branch)",
     sourceType: "regla_tecnica_general",
@@ -161,7 +190,9 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-general-lighting",
+    matchCategory: "lighting",
     category: "Iluminacion general (no hospitalaria)",
+    excludeTerms: ["hospital", "hospitales", "paciente", "patient care", "nec 517", "nfpa 99"],
     keywords: [
       "iluminacion",
       "iluminacion general",
@@ -201,6 +232,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-hospital-grade-receptacles",
+    matchCategory: "healthcare",
     category: "Hospital grade receptacles",
     keywords: [
       "hospital grade",
@@ -242,6 +274,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-patient-bed-locations",
+    matchCategory: "healthcare",
     category: "Patient bed locations",
     keywords: [
       "patient bed location",
@@ -280,8 +313,9 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-gfci",
+    matchCategory: "receptacles",
     category: "GFCI",
-    keywords: ["gfci", "ground fault", "falla a tierra", "gfci protection", "proteccion gfci"],
+    keywords: ["gfci", "ground fault", "falla a tierra", "gfci protection", "proteccion gfci", "receptaculo gfci", "gfci receptacle"],
     codeReference: "NEC Article 210.8 (GFCI protection for personnel)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
@@ -310,6 +344,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-afci",
+    matchCategory: "panels",
     category: "AFCI",
     keywords: ["afci", "arc fault", "falla de arco", "interruptor de falla de arco", "combination afci"],
     codeReference: "NEC Article 210.12 (Arc-Fault Circuit-Interrupter Protection)",
@@ -340,6 +375,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-grounding",
+    matchCategory: "grounding_bonding",
     category: "Grounding",
     keywords: ["grounding", "puesta a tierra", "electrodo de tierra", "grounding electrode"],
     codeReference: "NEC Article 250 (Grounding and Bonding)",
@@ -370,6 +406,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-bonding",
+    matchCategory: "grounding_bonding",
     category: "Bonding",
     keywords: ["bonding", "union equipotencial", "bonding jumper", "puente de bonding"],
     codeReference: "NEC Article 250, Part V (Bonding)",
@@ -400,6 +437,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-ev-chargers",
+    matchCategory: "ev_charging",
     category: "EV Chargers",
     keywords: ["ev charger", "cargador ev", "electric vehicle", "carro electrico", "coche electrico", "estacion de carga"],
     codeReference: "NEC Article 625 (Electric Vehicle Power Transfer System) y regla general de 125% para carga continua",
@@ -432,6 +470,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-feeder-subpanel-aluminum",
+    matchCategory: "feeders",
     category: "Alimentador a tablero secundario / conductores de aluminio (NEC Article 215)",
     keywords: [
       "alimentador",
@@ -513,6 +552,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-panel-upgrade",
+    matchCategory: "panels",
     category: "Panel Upgrade",
     keywords: ["panel upgrade", "cambiar panel", "upgrade de panel", "actualizacion de panel", "cambio de panel", "150a", "200a"],
     codeReference: "NEC Article 220 (load calculations), Article 250 (grounding and bonding), Article 110.26 (working space)",
@@ -549,6 +589,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-load-calculation",
+    matchCategory: "services",
     category: "Load Calculation",
     keywords: ["load calculation", "calculo de carga", "cargas calculadas", "demand factor", "factor de demanda"],
     codeReference: "NEC Article 220 (Branch-Circuit, Feeder, and Service Load Calculations)",
@@ -579,6 +620,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-conduit-fill",
+    matchCategory: "installation_methods",
     category: "Conduit Fill",
     keywords: ["conduit fill", "llenado de conduit", "relleno de tuberia", "porcentaje de llenado", "fill de tuberia"],
     codeReference: "NEC Chapter 9, Tables 1 y 4 (Conduit and Tubing Fill)",
@@ -609,6 +651,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-box-fill",
+    matchCategory: "installation_methods",
     category: "Box Fill",
     keywords: ["box fill", "llenado de caja", "capacidad de caja", "volumen de caja"],
     codeReference: "NEC Article 314.16 (Number of Conductors in Outlet, Device, and Junction Boxes)",
@@ -639,8 +682,9 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-houston-ahj",
+    matchCategory: "houston_ahj",
     category: "Houston AHJ",
-    keywords: ["houston ahj", "houston permitting", "permitting center", "permiso houston", "ahj", "autoridad local"],
+    keywords: ["houston ahj", "houston permitting", "permitting center", "permiso houston", "autoridad local", "houston public works"],
     codeReference: "Houston Permitting Center / AHJ local",
     sourceType: "guia_interna_general",
     shortAnswerEs:
@@ -669,6 +713,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-tdlr-texas",
+    matchCategory: "tdlr",
     category: "TDLR Texas",
     keywords: ["tdlr", "licencia texas", "texas department of licensing", "master electrician license", "licencia de electricista", "supervision"],
     codeReference: "Reglas de licenciamiento TDLR (Texas Department of Licensing and Regulation)",
@@ -699,6 +744,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-nfpa-70e",
+    matchCategory: "arc_flash_safety",
     category: "NFPA 70E",
     keywords: ["nfpa 70e", "70e", "arc flash", "epp", "ppe electrico", "loto", "bloqueo y etiquetado", "lockout tagout", "bloqueo", "etiquetado"],
     codeReference: "NFPA 70E (Standard for Electrical Safety in the Workplace)",
@@ -731,6 +777,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   },
   {
     id: "kb-nfpa-99",
+    matchCategory: "healthcare",
     category: "NFPA 99",
     keywords: ["nfpa 99", "essential electrical system", "sistema electrico esencial", "medical gas", "gas medico", "risk category", "categoria de riesgo"],
     codeReference: "NFPA 99 (Health Care Facilities Code)",
@@ -758,83 +805,150 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     recommendationEn: "Specialized, high-risk work. Escalate to the Master Electrician and confirm with the engineer of record and the AHJ before proceeding.",
     warningEs: "Guia preliminar interna basada en NFPA 99 y practica general; no reemplaza el texto oficial completo de NFPA 99 ni NEC Article 517.",
     warningEn: "Preliminary internal guide based on NFPA 99 and general practice; it does not replace the full official text of NFPA 99 or NEC Article 517."
+  },
+  {
+    id: "kb-exterior-wet-locations",
+    matchCategory: "exterior_wet_locations",
+    category: "Receptaculos en exteriores / lugares humedos y mojados (NEC 406.9)",
+    keywords: [
+      "receptaculos exteriores",
+      "receptaculo exterior",
+      "outdoor receptacle",
+      "outdoor receptacles",
+      "lugares humedos",
+      "lugares mojados",
+      "wet location",
+      "wet locations",
+      "damp location",
+      "damp locations",
+      "weather-resistant",
+      "weather resistant",
+      "weatherproof",
+      "in-use cover",
+      "tapa in-use",
+      "a prueba de intemperie",
+      "a la intemperie",
+      "exterior",
+      "exteriores",
+      "intemperie",
+      "humedo",
+      "mojado"
+    ],
+    codeReference: "NEC Article 406.9 (Receptacles in Damp and Wet Locations) y NEC Article 210.8 (GFCI Protection)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "Los receptaculos instalados en exteriores o en lugares humedos/mojados se rigen por NEC Article 406.9, que distingue dos condiciones: lugares humedos (damp locations, por ejemplo un area cubierta bajo techo o porche protegido de la lluvia directa) y lugares mojados (wet locations, expuestos directamente a la lluvia o al agua). En ambos casos, todo receptaculo de 125V/250V hasta 20A instalado en el exterior debe ser del tipo 'weather-resistant' (resistente a la intemperie, marcado WR), segun NEC 406.9(B)(1), sin importar si la ubicacion es damp o wet. Para lugares mojados se exige ademas una tapa 'in-use' (a prueba de intemperie incluso con el enchufe conectado), tambien segun 406.9(B)(1); para lugares humedos cubiertos, una tapa weatherproof estandar (que sella solo cuando esta cerrada) puede ser suficiente si el receptaculo no queda expuesto directamente a la lluvia. La mayoria de estos receptaculos exteriores tambien requieren proteccion GFCI segun NEC Article 210.8. La clasificacion exacta de la ubicacion (humeda o mojada) depende de las condiciones fisicas reales del sitio (si esta bajo techo, si tiene proteccion lateral contra lluvia, altura sobre el nivel del piso, etc.), por lo que siempre debe confirmarse en sitio antes de especificar el receptaculo y la tapa.",
+    shortAnswerEn:
+      "Receptacles installed outdoors or in damp/wet locations are governed by NEC Article 406.9, which distinguishes two conditions: damp locations (for example, a covered area under a roof or porch protected from direct rain) and wet locations (directly exposed to rain or water). In both cases, every 125V/250V receptacle up to 20A installed outdoors must be a listed weather-resistant type (marked WR) per NEC 406.9(B)(1), regardless of whether the location is damp or wet. Wet locations additionally require an 'in-use' cover (weatherproof even with the attachment plug inserted), also per 406.9(B)(1); for covered damp locations, a standard weatherproof cover (weatherproof only while closed) may be sufficient if the receptacle is not directly exposed to rain. Most of these outdoor receptacles also require GFCI protection per NEC Article 210.8. The exact classification of the location (damp or wet) depends on the actual site conditions (whether it's covered, side protection from rain, height above grade, etc.), so it must always be confirmed on site before specifying the receptacle and cover.",
+    riskLevel: "medio",
+    checklistEs: [
+      "Confirmar si la ubicacion es damp (cubierta) o wet (expuesta directamente a lluvia/agua)",
+      "Verificar que el receptaculo especificado sea tipo weather-resistant (WR) listado",
+      "Confirmar tapa in-use para lugares mojados; tapa weatherproof estandar puede bastar en lugares humedos cubiertos",
+      "Verificar proteccion GFCI en el circuito del receptaculo",
+      "Confirmar listado UL del receptaculo y la tapa para la ubicacion exacta"
+    ],
+    checklistEn: [
+      "Confirm whether the location is damp (covered) or wet (directly exposed to rain/water)",
+      "Verify the specified receptacle is a listed weather-resistant (WR) type",
+      "Confirm an in-use cover for wet locations; a standard weatherproof cover may be sufficient for covered damp locations",
+      "Verify GFCI protection on the receptacle's circuit",
+      "Confirm the UL listing of the receptacle and cover for the exact location"
+    ],
+    missingQuestionsEs: [
+      "Ubicacion exacta (cubierta bajo techo vs expuesta directamente a la lluvia)",
+      "Si el receptaculo estara en uso con el enchufe conectado de forma permanente (requiere tapa in-use)",
+      "Amperaje y voltaje del receptaculo"
+    ],
+    missingQuestionsEn: [
+      "Exact location (covered under a roof vs directly exposed to rain)",
+      "Whether the receptacle will be used with the attachment plug inserted permanently (requires an in-use cover)",
+      "Receptacle amperage and voltage"
+    ],
+    recommendationEs:
+      "Confirmar la clasificacion exacta de la ubicacion (damp o wet) y verificar el listado weather-resistant del receptaculo y la tapa in-use antes de instalar.",
+    recommendationEn:
+      "Confirm the exact classification of the location (damp or wet) and verify the receptacle's weather-resistant listing and the in-use cover before installing.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 2023 y practica general; no reemplaza el texto oficial completo de NEC Article 406.9. Verificar el articulo oficial, la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
+    warningEn:
+      "Preliminary internal guide based on NEC 2023 and general practice; it does not replace the full official text of NEC Article 406.9. Verify the official article, the edition adopted by the AHJ, and Master Electrician approval before installing."
+  },
+  {
+    id: "kb-mc-cable",
+    matchCategory: "mc_cable",
+    category: "MC Cable (cable metal-clad, NEC Article 330)",
+    keywords: [
+      "mc cable",
+      "cable mc",
+      "metal clad cable",
+      "metal-clad cable",
+      "cable metalico armado",
+      "armored cable",
+      "cable armado",
+      "conectores mc",
+      "mc connector",
+      "mc connectors",
+      "soportar cable mc",
+      "supporting mc cable"
+    ],
+    codeReference: "NEC Article 330 (Metal-Clad Cable, Type MC)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "El cable MC (metal-clad, con armadura metalica flexible) se instala segun NEC Article 330. Debe asegurarse (soportarse) a no mas de 6 pies de distancia entre soportes, y dentro de 12 pulgadas de cada caja, gabinete o conector, con excepciones para tramos 'fished' dentro de paredes terminadas donde no es practico soportarlo asi (NEC 330.30). Los conectores deben estar listados especificamente para MC cable (NEC 330.40); no se debe usar un conector generico o de otro metodo de cableado. El radio de curvatura minimo depende del fabricante y del diametro del cable, y debe respetarse para no danar el aislamiento interno. El MC cable estandar normalmente NO esta listado para enterrado directo ni para lugares humedos o corrosivos, a menos que sea un tipo especial listado para esa condicion (por ejemplo con cubierta resistente a la corrosion). La puesta a tierra del equipo puede lograrse mediante un conductor de tierra interno dedicado, o mediante la armadura metalica misma si el cable especifico esta listado para ese proposito; esto debe confirmarse contra el listado del producto, no asumirse.",
+    shortAnswerEn:
+      "MC (metal-clad) cable, with a flexible metal armor, is installed per NEC Article 330. It must be supported at intervals not exceeding 6 feet, and within 12 inches of every box, cabinet, or connector, with exceptions for fished runs in finished walls where that support pattern isn't practical (NEC 330.30). Connectors must be listed specifically for MC cable (NEC 330.40); a generic connector or one listed for a different wiring method must not be used. The minimum bend radius depends on the manufacturer and cable diameter and must be respected to avoid damaging the internal insulation. Standard MC cable is normally NOT listed for direct burial or for wet/corrosive locations unless it is a special type listed for that condition (for example, with a corrosion-resistant jacket). Equipment grounding can be achieved through a dedicated internal grounding conductor, or through the metal armor itself if the specific cable is listed for that purpose; this must be confirmed against the product's listing, not assumed.",
+    riskLevel: "medio",
+    checklistEs: [
+      "Confirmar soportes cada 6 pies maximo y dentro de 12 pulgadas de cada caja/conector (con excepciones para tramos fished)",
+      "Usar conectores listados especificamente para MC cable",
+      "Verificar radio de curvatura minimo del fabricante",
+      "Confirmar si la ubicacion es humeda, corrosiva o enterrada y si el MC cable especificado esta listado para esa condicion",
+      "Confirmar el metodo de puesta a tierra de equipo (conductor interno dedicado o armadura listada para ese uso)"
+    ],
+    checklistEn: [
+      "Confirm supports every 6 feet maximum and within 12 inches of every box/connector (with exceptions for fished runs)",
+      "Use connectors listed specifically for MC cable",
+      "Verify the manufacturer's minimum bend radius",
+      "Confirm whether the location is wet, corrosive, or underground and whether the specified MC cable is listed for that condition",
+      "Confirm the equipment grounding method (dedicated internal conductor or armor listed for that use)"
+    ],
+    missingQuestionsEs: [
+      "Ubicacion exacta de la instalacion (seca, humeda, corrosiva, enterrada)",
+      "Tipo especifico de MC cable especificado (estandar o listado especial)",
+      "Si el tramo es fished dentro de una pared terminada"
+    ],
+    missingQuestionsEn: [
+      "Exact installation location (dry, wet, corrosive, underground)",
+      "Specific MC cable type specified (standard or special listing)",
+      "Whether the run is fished inside a finished wall"
+    ],
+    recommendationEs:
+      "Confirmar el tipo especifico de MC cable y su listado para la ubicacion exacta antes de instalar; usar unicamente conectores listados para MC cable.",
+    recommendationEn:
+      "Confirm the specific MC cable type and its listing for the exact location before installing; use only connectors listed for MC cable.",
+    warningEs:
+      "Guia general interna basada en NEC Article 330; verificar el articulo oficial y el listado especifico del producto antes de instalar, especialmente en ubicaciones humedas, corrosivas o enterradas.",
+    warningEn:
+      "General internal guide based on NEC Article 330; verify the official article and the product's specific listing before installing, especially in wet, corrosive, or underground locations."
   }
 ];
 
-export function normalizeForMatch(text: string): string {
-  return text
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase();
-}
+export { normalizeForMatch };
 
-function mentionsAny(normalizedQuestion: string, terms: string[]): boolean {
-  return terms.some((term) => normalizedQuestion.includes(normalizeForMatch(term)));
-}
-
-// Terminos de iluminacion vs. receptaculos/tomas. Se resuelven ANTES que el
-// escaneo generico de keywords por array: sin esta guarda, una pregunta
-// como "que iluminacion se usa en hospitales" coincide con la keyword
-// generica "hospital" de kb-healthcare-517 (receptaculos) y responde sobre
-// tomas en vez de luminarias, que es exactamente el bug reportado.
-const LIGHTING_TERMS = [
-  "iluminacion",
-  "iluminacion general",
-  "iluminacion hospitalaria",
-  "luminaria",
-  "luminarias",
-  "luces",
-  "lighting",
-  "light fixture",
-  "punto de luz"
-];
-
-const RECEPTACLE_TERMS = [
-  "tomas",
-  "toma electrica",
-  "receptaculo",
-  "receptaculos",
-  "receptacle",
-  "receptacles",
-  "outlet",
-  "outlets",
-  "patient bed location",
-  "patient bed"
-];
-
-const HOSPITAL_CONTEXT_TERMS = [
-  "hospital",
-  "hospitales",
-  "healthcare",
-  "health care",
-  "nec 517",
-  "517",
-  "nfpa 99",
-  "patient care area",
-  "area de atencion al paciente"
-];
-
-// Busqueda por keywords compartida: usada tanto por el generador mock
-// (lib/ai/mockAssistant.ts) como por lib/db/dbAdapter.ts, para que ambos
-// encuentren exactamente la misma categoria ante la misma pregunta.
-export function findKnowledgeBaseMatch(question: string): KnowledgeBaseEntry | undefined {
-  const normalizedQuestion = normalizeForMatch(question);
-
-  const isLighting = mentionsAny(normalizedQuestion, LIGHTING_TERMS);
-  const isReceptacle = mentionsAny(normalizedQuestion, RECEPTACLE_TERMS);
-
-  // Si la pregunta es de iluminacion y NO menciona tomas/receptaculos,
-  // nunca debe responder sobre receptaculos: se resuelve directo a la
-  // entrada de iluminacion (hospitalaria o general) sin pasar por el
-  // escaneo generico de abajo.
-  if (isLighting && !isReceptacle) {
-    const isHospitalContext = mentionsAny(normalizedQuestion, HOSPITAL_CONTEXT_TERMS);
-    const lightingId = isHospitalContext ? "kb-healthcare-lighting" : "kb-general-lighting";
-    const lightingEntry = ELECTRICAL_KNOWLEDGE_BASE.find((entry) => entry.id === lightingId);
-    if (lightingEntry) return lightingEntry;
-  }
-
-  return ELECTRICAL_KNOWLEDGE_BASE.find((entry) =>
-    entry.keywords.some((keyword) => normalizedQuestion.includes(normalizeForMatch(keyword)))
-  );
+// Busqueda por score ponderado (ver lib/knowledge/matchEngine.ts), compartida
+// entre el generador mock (lib/ai/mockAssistant.ts) y lib/db/dbAdapter.ts,
+// para que ambos encuentren exactamente la misma categoria ante la misma
+// pregunta.
+//
+// YA NO existe un pre-chequeo hardcodeado de disambiguacion (el anterior
+// "si menciona iluminacion Y NO menciona receptaculos, ir directo a
+// lighting" fue reemplazado por el motor de score generico: una entrada de
+// lighting solo gana si su score ponderado supera a cualquier entrada de
+// receptaculos/healthcare, y las entradas de healthcare exigen su propio
+// gate de contexto). Devuelve null (no undefined) cuando ninguna entrada
+// alcanza el score minimo de confianza: nunca se reutiliza contenido
+// generico o relacionado solo por una palabra.
+export function findKnowledgeBaseMatch(question: string): KnowledgeBaseEntry | null {
+  return findBestMatch(question, ELECTRICAL_KNOWLEDGE_BASE);
 }

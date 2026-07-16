@@ -11,7 +11,7 @@ import {
   escalateQuery as escalateLocalQuery
 } from "./repos/queries";
 import { setReviewDecision as setLocalReviewDecision } from "./repos/reviews";
-import { normalizeForMatch } from "../knowledge/electricalKnowledgeBase";
+import { findBestMatch, type MatchCategory, type ScorableEntry } from "../knowledge/matchEngine";
 import type {
   AssistantResponse,
   Language,
@@ -274,6 +274,12 @@ interface SupabaseKnowledgeEntryRow {
   code_references: string | null;
   risk_level: string | null;
   source_used: string | null;
+  // Categoria obligatoria del motor de score (ver
+  // lib/knowledge/matchEngine.ts y supabase/knowledge_entries_match_category_upgrade.sql).
+  // Nullable porque filas antiguas pueden no tenerla poblada todavia: esas
+  // filas se tratan como categoria neutral sin gate (ver resolveMatchCategory
+  // mas abajo), nunca como un match automatico por keyword suelta.
+  match_category?: string | null;
   nec_articles?: string[] | null;
   tdlr_references?: string[] | null;
   ahj_references?: string[] | null;
@@ -661,12 +667,47 @@ export async function createReview(input: CreateReviewInput): Promise<ReviewReco
 
 // --- Knowledge base (electrica, tabla real en Supabase) --------------------
 
+// Categorias validas del motor de score (ver lib/knowledge/matchEngine.ts).
+// Cualquier valor de match_category que no este en esta lista (incluyendo
+// null/vacio, para filas creadas antes de la migracion) se resuelve a
+// "operational_guide": una categoria sin gate especial, para que esas filas
+// sigan pudiendo matchear por score sin heredar por accidente el gate de
+// otra categoria (ej. el de "healthcare").
+const KNOWN_MATCH_CATEGORIES = new Set<MatchCategory>([
+  "exterior_wet_locations",
+  "healthcare",
+  "feeders",
+  "services",
+  "grounding_bonding",
+  "mc_cable",
+  "panels",
+  "receptacles",
+  "ev_charging",
+  "tdlr",
+  "houston_ahj",
+  "lighting",
+  "arc_flash_safety",
+  "installation_methods",
+  "operational_guide"
+]);
+
+function resolveMatchCategory(raw: string | null | undefined): MatchCategory {
+  if (raw && KNOWN_MATCH_CATEGORIES.has(raw as MatchCategory)) return raw as MatchCategory;
+  return "operational_guide";
+}
+
+interface ScorableSupabaseRow extends ScorableEntry {
+  row: SupabaseKnowledgeEntryRow;
+}
+
 // public.knowledge_entries es ahora la base tecnica REAL: app/api/queries/route.ts
 // la consulta primero, antes de caer al motor mock local
 // (lib/knowledge/electricalKnowledgeBase.ts). Esta funcion NO hace ese
 // fallback ella misma -esa decision vive en el caller-: si Supabase no esta
-// configurado, no hay filas, ninguna coincide por keywords, o la consulta
-// falla, devuelve null y punto.
+// configurado, no hay filas, ninguna supera el score minimo de confianza
+// (ver lib/knowledge/matchEngine.ts: score ponderado, gate de categoria y
+// penalizacion por terminos contradictorios; ya NO es un match por una sola
+// palabra clave suelta), o la consulta falla, devuelve null y punto.
 export async function findKnowledgeByQuestion(question: string): Promise<KnowledgeEntryMatch | null> {
   if (!isSupabaseConfigured()) return null;
 
@@ -676,12 +717,16 @@ export async function findKnowledgeByQuestion(question: string): Promise<Knowled
     if (error) throw error;
     if (!data || data.length === 0) return null;
 
-    const normalizedQuestion = normalizeForMatch(question);
     const rows = data as SupabaseKnowledgeEntryRow[];
-    const match = rows.find((row) =>
-      (row.keywords ?? []).some((keyword) => normalizedQuestion.includes(normalizeForMatch(keyword)))
-    );
-    return match ? mapKnowledgeEntryRow(match) : null;
+    const scorable: ScorableSupabaseRow[] = rows.map((row) => ({
+      id: row.id,
+      matchCategory: resolveMatchCategory(row.match_category),
+      keywords: Array.isArray(row.keywords) ? row.keywords : [],
+      row
+    }));
+
+    const best = findBestMatch(question, scorable);
+    return best ? mapKnowledgeEntryRow(best.row) : null;
   } catch (error) {
     logSupabaseError("findKnowledgeByQuestion: fallo la busqueda en Supabase.", error);
     return null;
