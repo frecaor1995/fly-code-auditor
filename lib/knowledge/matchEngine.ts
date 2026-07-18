@@ -143,6 +143,15 @@ const CATEGORY_GATES: Partial<Record<MatchCategory, CategoryGate>> = {
 const MINIMUM_SCORE = 2;
 const CONTRADICTION_PENALTY = 5;
 
+// Usado por la validacion de integridad de app/api/queries/route.ts (una
+// respuesta "validated_fallback" debe re-chequear, sobre la pregunta
+// original, que ninguno de los terminos contradictorios de la categoria
+// matcheada esta presente -defensa en profundidad ademas del gate que ya
+// se aplico durante el matching).
+export function getCategoryExcludeTerms(category: MatchCategory): string[] {
+  return CATEGORY_GATES[category]?.excludeTerms ?? [];
+}
+
 export function normalizeForMatch(text: string): string {
   return text
     .normalize("NFD")
@@ -154,9 +163,51 @@ function weightOf(term: string): number {
   return Math.max(1, term.trim().split(/\s+/).length);
 }
 
+// Marcadores de negacion: un termino "contradictorio" que aparece justo
+// despues de uno de estos NO debe penalizar el score. Sin esto, una
+// instruccion explicita como "no uses informacion de hospitales" penaliza
+// la entrada CORRECTA (exterior_wet_locations) por contener "hospitales",
+// exactamente al reves de la intencion de quien pregunta: pidio EVITAR
+// hospitales, no preguntar sobre hospitales.
+const NEGATION_MARKERS = [
+  "no ",
+  "nunca ",
+  "sin ",
+  "ni ",
+  "not ",
+  "never ",
+  "without ",
+  "excluye",
+  "excluir",
+  "evita",
+  "evitar"
+];
+
+function isNegatedAt(normalizedQuestion: string, matchIndex: number): boolean {
+  const windowStart = Math.max(0, matchIndex - 30);
+  const before = normalizedQuestion.slice(windowStart, matchIndex);
+  return NEGATION_MARKERS.some((marker) => before.includes(marker));
+}
+
+// Devuelve el primer termino contradictorio realmente presente (no negado)
+// en la pregunta, o null si ninguno aplica. Exportado para que
+// app/api/queries/route.ts pueda re-validar con la MISMA logica (incluyendo
+// el chequeo de negacion) en vez de duplicar un chequeo mas ingenuo.
+export function findContradiction(question: string, terms: string[]): string | null {
+  const normalizedQuestion = normalizeForMatch(question);
+  const uniqueTerms = Array.from(new Set(terms));
+  for (const term of uniqueTerms) {
+    const idx = normalizedQuestion.indexOf(normalizeForMatch(term));
+    if (idx !== -1 && !isNegatedAt(normalizedQuestion, idx)) {
+      return term;
+    }
+  }
+  return null;
+}
+
 // Devuelve el score de una entrada, o null si su categoria queda
 // descalificada por un gate (requiredAnyOf no satisfecho).
-function scoreEntry(normalizedQuestion: string, entry: ScorableEntry): number | null {
+function scoreEntry(normalizedQuestion: string, rawQuestion: string, entry: ScorableEntry): number | null {
   const gate = CATEGORY_GATES[entry.matchCategory];
 
   if (gate?.requiredAnyOf?.length) {
@@ -171,11 +222,13 @@ function scoreEntry(normalizedQuestion: string, entry: ScorableEntry): number | 
     }
   }
 
+  // Deduplicado (gate.excludeTerms y entry.excludeTerms suelen solaparse) y
+  // consciente de negacion: cada termino contradictorio penaliza como
+  // maximo una vez, y nunca si aparece justo despues de un marcador de
+  // negacion ("no", "sin", "nunca", etc).
   const contradictoryTerms = [...(gate?.excludeTerms ?? []), ...(entry.excludeTerms ?? [])];
-  for (const term of contradictoryTerms) {
-    if (normalizedQuestion.includes(normalizeForMatch(term))) {
-      score -= CONTRADICTION_PENALTY;
-    }
+  if (findContradiction(rawQuestion, contradictoryTerms)) {
+    score -= CONTRADICTION_PENALTY;
   }
 
   return score;
@@ -189,7 +242,7 @@ export function findBestMatch<T extends ScorableEntry>(question: string, entries
   let best: { entry: T; score: number } | null = null;
 
   for (const entry of entries) {
-    const score = scoreEntry(normalizedQuestion, entry);
+    const score = scoreEntry(normalizedQuestion, question, entry);
     if (score === null) continue;
     if (score < MINIMUM_SCORE) continue;
     if (!best || score > best.score) best = { entry, score };

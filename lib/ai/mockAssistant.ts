@@ -426,11 +426,17 @@ export async function mockAskAssistant(input: AskAssistantInput): Promise<Assist
   // ver app/api/queries/route.ts) supero el score minimo de confianza del
   // motor de matching (lib/knowledge/matchEngine.ts). A diferencia de la
   // version anterior, esto NO reutiliza contenido generico ni relacionado
-  // solo por una palabra (checklist/missingQuestions genericos, o el
-  // "Referencia interna disponible" de kbNote): se devuelve el mensaje fijo
-  // exacto, marcado con unverified=true para que app/api/queries/route.ts y
-  // el frontend lo muestren como "sin informacion verificable", nunca como
-  // si fuera una respuesta tecnica respaldada.
+  // solo por una palabra: se devuelve el mensaje fijo exacto.
+  return buildUnverifiedResponse(language);
+}
+
+// Mensaje fijo obligatorio cuando ninguna fuente (knowledge_entries/base
+// local/OpenAI) produjo una coincidencia confiable y validada. Exportado
+// para que app/api/queries/route.ts pueda reusarlo tambien cuando degrada
+// una respuesta "validated_fallback" que no paso la validacion de
+// integridad (ver validateFallbackIntegrity en route.ts) - nunca se
+// reescribe este texto en otro lugar del codigo.
+export function buildUnverifiedResponse(language: Language): AssistantResponse {
   const NOT_BACKED_ES = "No fue posible generar una respuesta técnica respaldada. Intente nuevamente o consulte la fuente oficial.";
   const NOT_BACKED_EN = "It was not possible to generate a backed technical answer. Try again or consult the official source.";
 
