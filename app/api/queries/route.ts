@@ -336,14 +336,16 @@ async function fetchAvailableKnowledge(question: string): Promise<AvailableKnowl
   return { knowledgeMatch, officialSources };
 }
 
-type AiProvider = "gemini" | "openai" | "mock";
+type SelectedProvider = "gemini" | "openai" | "mock";
+type AttemptedProvider = "gemini" | "openai" | "mock" | "none";
+type ActualProvider = "gemini" | "openai" | "mock" | "local_validated_fallback" | "supabase_knowledge_entries";
 
 // AI_PROVIDER manda si esta seteado explicitamente (valores soportados:
 // "gemini", "openai"). Sin AI_PROVIDER, se mantiene el comportamiento
 // historico basado en USE_MOCK_AI (mock por defecto; OpenAI real solo si
 // USE_MOCK_AI=false), para no romper despliegues existentes que no
 // conocen AI_PROVIDER todavia.
-function selectProvider(): AiProvider {
+function selectProvider(): SelectedProvider {
   const configured = (process.env.AI_PROVIDER || "").trim().toLowerCase();
   if (configured === "gemini") return "gemini";
   if (configured === "openai") return "openai";
@@ -352,46 +354,65 @@ function selectProvider(): AiProvider {
 
 interface GeneratedAssistant {
   response: AssistantResponse;
-  providerUsed: AiProvider;
+  selectedProvider: SelectedProvider;
+  attemptedProvider: AttemptedProvider;
+  // actualProvider es SIEMPRE quien produjo el texto de "response". Nunca
+  // repite el proveedor intentado cuando ese proveedor fallo (ver bug
+  // corregido en el comentario de lib/db/types.ts#AssistantResponse).
+  actualProvider: ActualProvider;
   providerFallback: boolean;
   providerError: string | null;
   providerErrorCode: string | null;
   providerErrorStatus: number | null;
   providerModel: string | null;
+  durationMs: number;
 }
 
 // El motor local (lib/ai/mockAssistant.ts) nunca deberia fallar (no depende
 // de red ni de ningun servicio externo): si de todas formas falla, es el
-// ultimo recurso real antes del catch fatal de mas abajo en POST().
+// ultimo recurso real antes del catch fatal de mas abajo en POST(). Siempre
+// que se llega aqui es porque un proveedor de IA fallo: actualProvider
+// queda fijo en "local_validated_fallback" (nunca el nombre del proveedor
+// que fallo), por mas que el motor local termine devolviendo la respuesta
+// unverified fija (esa distincion la lleva answerKind, no actualProvider).
 async function localFallback(
   question: string,
   language: Language,
-  providerUsed: AiProvider,
+  selectedProvider: SelectedProvider,
+  attemptedProvider: AttemptedProvider,
   providerErrorCode: string,
   providerErrorMessage: string,
-  providerModel: string | null
+  providerModel: string | null,
+  attemptDurationMs: number
 ): Promise<GeneratedAssistant> {
+  const startedAt = Date.now();
   try {
     const response = await mockAskAssistant({ question, language });
     return {
       response,
-      providerUsed,
+      selectedProvider,
+      attemptedProvider,
+      actualProvider: "local_validated_fallback",
       providerFallback: true,
       providerError: providerErrorMessage,
       providerErrorCode,
       providerErrorStatus: null,
-      providerModel
+      providerModel,
+      durationMs: attemptDurationMs + (Date.now() - startedAt)
     };
   } catch (mockError) {
     console.error("[queries:fatal]", mockError);
     return {
       response: buildOfflineFallbackResponse(language),
-      providerUsed,
+      selectedProvider,
+      attemptedProvider,
+      actualProvider: "local_validated_fallback",
       providerFallback: true,
       providerError: providerErrorMessage,
       providerErrorCode,
       providerErrorStatus: null,
-      providerModel
+      providerModel,
+      durationMs: attemptDurationMs + (Date.now() - startedAt)
     };
   }
 }
@@ -401,83 +422,134 @@ async function localFallback(
 // funcionar). El proveedor se decide una sola vez (selectProvider): mock
 // usa directamente el motor local (no es un "fallback", providerFallback
 // queda false); gemini y openai SIEMPRE intentan la llamada real primero, y
-// ante cualquier falla (400/401/403/404/429/timeout/JSON invalido/red) caen
-// al motor local ya validado (mockAskAssistant + validateFallbackIntegrity
-// mas abajo en POST), capturando el diagnostico real (status/code/mensaje;
-// classifyProviderError NUNCA expone la API key) para que el cliente y los
-// logs de servidor sepan exactamente por que fallo, en vez de un mensaje
-// generico "no disponible". Cuando AI_PROVIDER=gemini, OpenAI NUNCA se
-// consulta (ni siquiera como respaldo): el unico respaldo es el motor local.
+// ante cualquier falla (400/401/403/404/429/timeout/JSON invalido/
+// schema_validation_failed/red) caen al motor local ya validado
+// (mockAskAssistant + validateFallbackIntegrity mas abajo en POST),
+// capturando el diagnostico real (status/code/mensaje; classifyProviderError
+// NUNCA expone la API key) para que el cliente y los logs de servidor sepan
+// exactamente por que fallo, en vez de un mensaje generico "no disponible".
+// Cuando AI_PROVIDER=gemini, OpenAI NUNCA se consulta (ni siquiera como
+// respaldo): el unico respaldo es el motor local. Cada intento (exitoso o
+// no) se registra con "[queries:provider-call]" (item 5: provider, model,
+// http status, error code, duracion, si se uso fallback), sin exponer
+// ninguna clave.
 async function generateAssistantResponse(question: string, language: Language): Promise<GeneratedAssistant> {
-  const provider = selectProvider();
+  const selectedProvider = selectProvider();
 
-  if (provider === "mock") {
+  if (selectedProvider === "mock") {
+    const startedAt = Date.now();
     const response = await mockAskAssistant({ question, language });
+    const durationMs = Date.now() - startedAt;
+    console.log("[queries:provider-call]", { provider: "mock", model: null, httpStatus: null, errorCode: null, durationMs, usedFallback: false });
     return {
       response,
-      providerUsed: "mock",
+      selectedProvider: "mock",
+      attemptedProvider: "mock",
+      actualProvider: "mock",
       providerFallback: false,
       providerError: null,
       providerErrorCode: null,
       providerErrorStatus: null,
-      providerModel: null
+      providerModel: null,
+      durationMs
     };
   }
 
-  if (provider === "gemini") {
+  if (selectedProvider === "gemini") {
     const result = await geminiAskAssistant({ question, language });
+    console.log("[queries:provider-call]", {
+      provider: "gemini",
+      model: result.providerModel,
+      httpStatus: result.httpStatus,
+      errorCode: result.providerErrorCode,
+      durationMs: result.durationMs,
+      usedFallback: !result.ok
+    });
     if (result.ok && result.response) {
       return {
         response: result.response,
-        providerUsed: "gemini",
+        selectedProvider: "gemini",
+        attemptedProvider: "gemini",
+        actualProvider: "gemini",
         providerFallback: false,
         providerError: null,
         providerErrorCode: null,
         providerErrorStatus: null,
-        providerModel: result.providerModel
+        providerModel: result.providerModel,
+        durationMs: result.durationMs
       };
     }
     console.error("[queries:gemini]", {
       code: result.providerErrorCode,
       message: result.providerErrorMessage,
-      model: result.providerModel
+      model: result.providerModel,
+      httpStatus: result.httpStatus,
+      durationMs: result.durationMs
     });
-    return localFallback(
+    const geminiFallback = await localFallback(
       question,
       language,
       "gemini",
+      "gemini",
       result.providerErrorCode ?? "unknown_error",
       result.providerErrorMessage ?? "Gemini no respondio.",
-      result.providerModel
+      result.providerModel,
+      result.durationMs
     );
+    return { ...geminiFallback, providerErrorStatus: result.httpStatus };
   }
 
-  // provider === "openai"
+  // selectedProvider === "openai"
   const model = process.env.OPENAI_MODEL || "gpt-4o";
+  const startedAt = Date.now();
   try {
     const response = await withTimeout(openaiAskAssistant({ question, language }), OPENAI_TIMEOUT_MS, "openai");
+    const durationMs = Date.now() - startedAt;
+    console.log("[queries:provider-call]", { provider: "openai", model, httpStatus: 200, errorCode: null, durationMs, usedFallback: false });
     return {
       response,
-      providerUsed: "openai",
+      selectedProvider: "openai",
+      attemptedProvider: "openai",
+      actualProvider: "openai",
       providerFallback: false,
       providerError: null,
       providerErrorCode: null,
       providerErrorStatus: null,
-      providerModel: model
+      providerModel: model,
+      durationMs
     };
   } catch (error) {
+    const durationMs = Date.now() - startedAt;
     const diagnostics = classifyProviderError(error);
-    // Log claro y completo (status/code/type/model), SIN el objeto de error
-    // crudo (que podria traer headers internos) y SIN la API key (que
-    // classifyProviderError nunca lee).
+    // Log claro y completo (status/code/type/model/duracion), SIN el objeto
+    // de error crudo (que podria traer headers internos) y SIN la API key
+    // (que classifyProviderError nunca lee).
     console.error("[queries:openai]", {
       status: diagnostics.status,
       code: diagnostics.code,
       type: diagnostics.type,
       model,
-      message: diagnostics.message
+      message: diagnostics.message,
+      durationMs
     });
-    const fallback = await localFallback(question, language, "openai", diagnostics.code ?? "unknown_error", diagnostics.message, model);
+    console.log("[queries:provider-call]", {
+      provider: "openai",
+      model,
+      httpStatus: diagnostics.status,
+      errorCode: diagnostics.code,
+      durationMs,
+      usedFallback: true
+    });
+    const fallback = await localFallback(
+      question,
+      language,
+      "openai",
+      "openai",
+      diagnostics.code ?? "unknown_error",
+      diagnostics.message,
+      model,
+      durationMs
+    );
     return { ...fallback, providerErrorStatus: diagnostics.status };
   }
 }
@@ -601,7 +673,9 @@ export async function POST(req: NextRequest) {
     let response: AssistantResponse;
     let category: string;
     let sourceUsed: string;
-    let providerUsed: AiProvider = selectProvider();
+    const selectedProviderForRequest: SelectedProvider = selectProvider();
+    let attemptedProvider: AttemptedProvider = "none";
+    let actualProvider: ActualProvider = "mock";
     let providerFallback = false;
     let providerError: string | null = null;
     let providerErrorCode: string | null = null;
@@ -611,7 +685,8 @@ export async function POST(req: NextRequest) {
     if (isMetaQuestion) {
       const generated = await generateAssistantResponse(question, language);
       response = generated.response;
-      providerUsed = generated.providerUsed;
+      attemptedProvider = generated.attemptedProvider;
+      actualProvider = generated.actualProvider;
       providerFallback = generated.providerFallback;
       providerError = generated.providerError;
       providerErrorCode = generated.providerErrorCode;
@@ -620,13 +695,18 @@ export async function POST(req: NextRequest) {
       category = "system_source_explanation";
       sourceUsed = extractSourceFile(response.sourceInfo) ?? FALLBACK_SOURCE_USED;
     } else if (knowledgeMatch) {
+      // Ningun proveedor de IA se llama en esta rama: la respuesta sale
+      // directo de public.knowledge_entries en Supabase.
       response = buildResponseFromKnowledgeMatch(knowledgeMatch, language);
       category = knowledgeMatch.category;
       sourceUsed = knowledgeMatch.sourceUsed;
+      attemptedProvider = "none";
+      actualProvider = "supabase_knowledge_entries";
     } else {
       const generated = await generateAssistantResponse(question, language);
       response = generated.response;
-      providerUsed = generated.providerUsed;
+      attemptedProvider = generated.attemptedProvider;
+      actualProvider = generated.actualProvider;
       providerFallback = generated.providerFallback;
       providerError = generated.providerError;
       providerErrorCode = generated.providerErrorCode;
@@ -718,8 +798,12 @@ export async function POST(req: NextRequest) {
     // estos campos directamente de response.*).
     response = {
       ...response,
-      provider: providerUsed,
+      selectedProvider: selectedProviderForRequest,
+      attemptedProvider,
+      actualProvider,
       providerModel,
+      providerFallback,
+      providerErrorCode,
       answerKind: computeAnswerKind(response, providerFallback),
       internalSourceUsed: sourceUsed
     };
@@ -771,7 +855,9 @@ export async function POST(req: NextRequest) {
         detectedIntent: intentResult.intent,
         sourceUsed,
         source_used: sourceUsed,
-        provider: providerUsed,
+        selectedProvider: selectedProviderForRequest,
+        attemptedProvider,
+        actualProvider,
         providerFallback,
         answerKind: response.answerKind ?? computeAnswerKind(response, providerFallback),
         unverified: Boolean(response.unverified),
@@ -799,8 +885,12 @@ export async function POST(req: NextRequest) {
     try {
       const fallbackResponse: AssistantResponse = {
         ...buildOfflineFallbackResponse(language),
-        provider: "mock",
+        selectedProvider: selectProvider(),
+        attemptedProvider: "none",
+        actualProvider: "local_validated_fallback",
         providerModel: null,
+        providerFallback: true,
+        providerErrorCode: classifyProviderError(fatalError).code,
         answerKind: "unverified",
         internalSourceUsed: FALLBACK_SOURCE_USED
       };
@@ -814,7 +904,9 @@ export async function POST(req: NextRequest) {
           detectedIntent: "general",
           sourceUsed: FALLBACK_SOURCE_USED,
           source_used: FALLBACK_SOURCE_USED,
-          provider: "mock",
+          selectedProvider: fallbackResponse.selectedProvider,
+          attemptedProvider: fallbackResponse.attemptedProvider,
+          actualProvider: fallbackResponse.actualProvider,
           providerFallback: true,
           answerKind: "unverified",
           unverified: true,

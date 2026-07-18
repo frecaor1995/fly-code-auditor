@@ -6,9 +6,13 @@
 // JSON invalido), sin agregar una dependencia mas al proyecto.
 //
 // Contrato de salida: geminiAskAssistant() NUNCA lanza. Siempre devuelve un
-// GeminiCallResult con { ok, provider, providerModel, response,
-// providerErrorCode, providerErrorMessage } para que el caller
-// (app/api/queries/route.ts) no necesite try/catch propio por proveedor.
+// GeminiCallResult con { ok, attemptedProvider, providerModel, response,
+// providerErrorCode, providerErrorMessage, httpStatus, durationMs } para
+// que el caller (app/api/queries/route.ts) no necesite try/catch propio
+// por proveedor, y para que quede claro que "attemptedProvider: gemini" es
+// SOLO a quien se llamo, no necesariamente quien produjo el texto (eso lo
+// decide route.ts segun ok/response: si ok=false, el texto final sale del
+// motor local, no de Gemini).
 
 import type { AssistantResponse } from "../../db/types";
 import type { AskAssistantInput } from "../types";
@@ -21,11 +25,13 @@ const GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models
 
 export interface GeminiCallResult {
   ok: boolean;
-  provider: "gemini";
+  attemptedProvider: "gemini";
   providerModel: string;
   response: AssistantResponse | null;
   providerErrorCode: string | null;
   providerErrorMessage: string | null;
+  httpStatus: number | null;
+  durationMs: number;
 }
 
 // Error interno con .code/.status ya clasificados; nunca se propaga fuera
@@ -134,12 +140,24 @@ function extractText(body: unknown): string | null {
   return typeof text === "string" && text.trim() ? text : null;
 }
 
+// Extrae .code de CUALQUIER error conocido de este archivo o de
+// parseAssistantJson (InvalidModelJsonError/SchemaValidationError en
+// shared.ts), sin acoplar este archivo a esas clases via instanceof
+// (duck-typing sobre .code, que ambas exponen).
+function errorCodeOf(error: unknown): string {
+  if (error instanceof GeminiProviderError) return error.code;
+  const withCode = error as { code?: unknown };
+  if (typeof withCode?.code === "string") return withCode.code;
+  return "unknown_error";
+}
+
 // Punto de entrada usado por app/api/queries/route.ts. NUNCA lanza: toda
 // falla (config faltante, 400/401/403/404/429, timeout, red, JSON invalido,
-// respuesta vacia) se captura y se devuelve como
-// { ok: false, providerErrorCode, providerErrorMessage }.
+// JSON valido pero con forma incorrecta, respuesta vacia) se captura y se
+// devuelve como { ok: false, providerErrorCode, providerErrorMessage }.
 export async function geminiAskAssistant(input: AskAssistantInput): Promise<GeminiCallResult> {
   const model = getGeminiModel();
+  const startedAt = Date.now();
 
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -158,12 +176,34 @@ export async function geminiAskAssistant(input: AskAssistantInput): Promise<Gemi
       throw new GeminiProviderError("Gemini no devolvio contenido de texto en la respuesta.", "empty_response", null);
     }
 
+    // parseAssistantJson puede lanzar InvalidModelJsonError o
+    // SchemaValidationError (ver lib/ai/providers/shared.ts); ambas se
+    // capturan abajo igual que un GeminiProviderError.
     const response = parseAssistantJson(text, input.language);
-    return { ok: true, provider: "gemini", providerModel: model, response, providerErrorCode: null, providerErrorMessage: null };
+    return {
+      ok: true,
+      attemptedProvider: "gemini",
+      providerModel: model,
+      response,
+      providerErrorCode: null,
+      providerErrorMessage: null,
+      httpStatus: 200,
+      durationMs: Date.now() - startedAt
+    };
   } catch (error) {
-    const code = error instanceof GeminiProviderError ? error.code : "unknown_error";
+    const code = errorCodeOf(error);
+    const status = error instanceof GeminiProviderError ? error.status : null;
     const message = safeErrorMessage(error, "Gemini no respondio.");
-    return { ok: false, provider: "gemini", providerModel: model, response: null, providerErrorCode: code, providerErrorMessage: message };
+    return {
+      ok: false,
+      attemptedProvider: "gemini",
+      providerModel: model,
+      response: null,
+      providerErrorCode: code,
+      providerErrorMessage: message,
+      httpStatus: status,
+      durationMs: Date.now() - startedAt
+    };
   }
 }
 

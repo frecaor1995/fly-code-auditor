@@ -69,17 +69,36 @@ export interface AssistantResponse {
   // app/api/queries/route.ts y el frontend para mostrar este caso como
   // "sin informacion verificable" en vez de como una respuesta tecnica.
   unverified?: boolean;
-  // Metadatos de transparencia (deben mostrarse en toda respuesta visible,
-  // ver components/assistant/AssistantResponseCard.tsx): que proveedor
-  // genero esta respuesta (gemini/openai/mock), su modelo exacto, el
-  // resultado de la clasificacion de confianza, y de que fuente interna
-  // salio el contenido (Supabase knowledge_entries, un id de
-  // electricalKnowledgeBase.ts, o el motor de reglas generico). Se
-  // completan en app/api/queries/route.ts justo antes de guardar/devolver
-  // la respuesta, para que queden persistidos y visibles tambien en el
-  // historial, no solo en la consulta en vivo.
-  provider?: "gemini" | "openai" | "mock";
+  // Metadatos de trazabilidad de proveedor (deben mostrarse en toda
+  // respuesta visible, ver components/assistant/AssistantResponseCard.tsx).
+  // Se completan en app/api/queries/route.ts justo antes de guardar/
+  // devolver la respuesta, para que queden persistidos y visibles tambien
+  // en el historial, no solo en la consulta en vivo.
+  //
+  // Los tres campos de proveedor son DELIBERADAMENTE distintos entre si
+  // (bug corregido: antes un solo campo "provider" mostraba "Gemini" como
+  // si hubiera respondido, aunque hubiera fallado y el texto real viniera
+  // del motor local):
+  //   - selectedProvider: valor de AI_PROVIDER (que proveedor esta
+  //     configurado, exista o no una llamada real).
+  //   - attemptedProvider: a que proveedor se le hizo la llamada real
+  //     ("none" si nunca se llamo a ningun proveedor, ej. cuando
+  //     knowledge_entries de Supabase ya respondio directo).
+  //   - actualProvider: quien PRODUJO EL TEXTO que se esta mostrando. Si
+  //     attemptedProvider fallo, actualProvider NUNCA repite ese proveedor:
+  //     pasa a "local_validated_fallback" (el motor local generó el texto)
+  //     o "supabase_knowledge_entries" (cuando el texto vino directo de
+  //     esa tabla, sin pasar por ningun proveedor de IA).
+  selectedProvider?: "gemini" | "openai" | "mock";
+  attemptedProvider?: "gemini" | "openai" | "mock" | "none";
+  actualProvider?: "gemini" | "openai" | "mock" | "local_validated_fallback" | "supabase_knowledge_entries";
   providerModel?: string | null;
+  // true cuando attemptedProvider fallo y el texto vino del fallback local.
+  // providerErrorCode es el codigo sanitizado del fallo (nunca el mensaje
+  // completo ni la clave): "Motivo del fallback" en la tarjeta lo muestra
+  // tal cual (ej. "rate_limit_or_quota", "model_not_found", "timeout").
+  providerFallback?: boolean;
+  providerErrorCode?: string | null;
   answerKind?: "backed" | "validated_fallback" | "unverified";
   internalSourceUsed?: string;
 }
