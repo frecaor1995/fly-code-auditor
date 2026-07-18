@@ -12,14 +12,16 @@ import {
   type KnowledgeEntryMatch,
   type OfficialSource
 } from "@/lib/db/dbAdapter";
-import { normalizeForMatch } from "@/lib/knowledge/electricalKnowledgeBase";
+import { normalizeForMatch, findKnowledgeBaseMatch, type KnowledgeBaseEntry } from "@/lib/knowledge/electricalKnowledgeBase";
+import { getCategoryExcludeTerms, findContradiction } from "@/lib/knowledge/matchEngine";
 import { isMockAiEnabled } from "@/lib/ai";
-import { mockAskAssistant } from "@/lib/ai/mockAssistant";
+import { mockAskAssistant, buildUnverifiedResponse } from "@/lib/ai/mockAssistant";
 import { openaiAskAssistant } from "@/lib/ai/openaiAssistant";
+import { geminiAskAssistant } from "@/lib/ai/providers/geminiProvider";
 import { buildOfflineFallbackResponse } from "@/lib/ai/localFallback";
 import { classifyIntent } from "@/lib/ai/intentClassifier";
 import { standardWarning, verifyNecMessage } from "@/lib/ai/types";
-import { withTimeout, safeErrorMessage } from "@/lib/utils/resilience";
+import { withTimeout, safeErrorMessage, classifyProviderError } from "@/lib/utils/resilience";
 import type { AssistantResponse, Language, QueryMode, QueryRecord } from "@/lib/db/types";
 
 const FALLBACK_SOURCE_USED = "Fly Electric Solutions LLC internal fallback";
@@ -334,42 +336,189 @@ async function fetchAvailableKnowledge(question: string): Promise<AvailableKnowl
   return { knowledgeMatch, officialSources };
 }
 
+type AiProvider = "gemini" | "openai" | "mock";
+
+// AI_PROVIDER manda si esta seteado explicitamente (valores soportados:
+// "gemini", "openai"). Sin AI_PROVIDER, se mantiene el comportamiento
+// historico basado en USE_MOCK_AI (mock por defecto; OpenAI real solo si
+// USE_MOCK_AI=false), para no romper despliegues existentes que no
+// conocen AI_PROVIDER todavia.
+function selectProvider(): AiProvider {
+  const configured = (process.env.AI_PROVIDER || "").trim().toLowerCase();
+  if (configured === "gemini") return "gemini";
+  if (configured === "openai") return "openai";
+  return isMockAiEnabled() ? "mock" : "openai";
+}
+
 interface GeneratedAssistant {
   response: AssistantResponse;
+  providerUsed: AiProvider;
   providerFallback: boolean;
   providerError: string | null;
+  providerErrorCode: string | null;
+  providerErrorStatus: number | null;
+  providerModel: string | null;
+}
+
+// El motor local (lib/ai/mockAssistant.ts) nunca deberia fallar (no depende
+// de red ni de ningun servicio externo): si de todas formas falla, es el
+// ultimo recurso real antes del catch fatal de mas abajo en POST().
+async function localFallback(
+  question: string,
+  language: Language,
+  providerUsed: AiProvider,
+  providerErrorCode: string,
+  providerErrorMessage: string,
+  providerModel: string | null
+): Promise<GeneratedAssistant> {
+  try {
+    const response = await mockAskAssistant({ question, language });
+    return {
+      response,
+      providerUsed,
+      providerFallback: true,
+      providerError: providerErrorMessage,
+      providerErrorCode,
+      providerErrorStatus: null,
+      providerModel
+    };
+  } catch (mockError) {
+    console.error("[queries:fatal]", mockError);
+    return {
+      response: buildOfflineFallbackResponse(language),
+      providerUsed,
+      providerFallback: true,
+      providerError: providerErrorMessage,
+      providerErrorCode,
+      providerErrorStatus: null,
+      providerModel
+    };
+  }
 }
 
 // Paso (c) del flujo obligatorio: genera la respuesta tecnica SIN depender
 // de Supabase en absoluto (ni de si el guardado, que ocurre despues, va a
-// funcionar). Si USE_MOCK_AI esta activo, usa directamente el motor local.
-// Si no, intenta OpenAI con timeout y, ante cualquier falla (timeout, sin
-// API key, rate limit, red), cae al motor local (mockAskAssistant) y marca
-// providerFallback/providerError para que el cliente pueda mostrar un aviso
-// especifico en vez de un error generico de conexion.
+// funcionar). El proveedor se decide una sola vez (selectProvider): mock
+// usa directamente el motor local (no es un "fallback", providerFallback
+// queda false); gemini y openai SIEMPRE intentan la llamada real primero, y
+// ante cualquier falla (400/401/403/404/429/timeout/JSON invalido/red) caen
+// al motor local ya validado (mockAskAssistant + validateFallbackIntegrity
+// mas abajo en POST), capturando el diagnostico real (status/code/mensaje;
+// classifyProviderError NUNCA expone la API key) para que el cliente y los
+// logs de servidor sepan exactamente por que fallo, en vez de un mensaje
+// generico "no disponible". Cuando AI_PROVIDER=gemini, OpenAI NUNCA se
+// consulta (ni siquiera como respaldo): el unico respaldo es el motor local.
 async function generateAssistantResponse(question: string, language: Language): Promise<GeneratedAssistant> {
-  if (isMockAiEnabled()) {
+  const provider = selectProvider();
+
+  if (provider === "mock") {
     const response = await mockAskAssistant({ question, language });
-    return { response, providerFallback: false, providerError: null };
+    return {
+      response,
+      providerUsed: "mock",
+      providerFallback: false,
+      providerError: null,
+      providerErrorCode: null,
+      providerErrorStatus: null,
+      providerModel: null
+    };
   }
 
+  if (provider === "gemini") {
+    const result = await geminiAskAssistant({ question, language });
+    if (result.ok && result.response) {
+      return {
+        response: result.response,
+        providerUsed: "gemini",
+        providerFallback: false,
+        providerError: null,
+        providerErrorCode: null,
+        providerErrorStatus: null,
+        providerModel: result.providerModel
+      };
+    }
+    console.error("[queries:gemini]", {
+      code: result.providerErrorCode,
+      message: result.providerErrorMessage,
+      model: result.providerModel
+    });
+    return localFallback(
+      question,
+      language,
+      "gemini",
+      result.providerErrorCode ?? "unknown_error",
+      result.providerErrorMessage ?? "Gemini no respondio.",
+      result.providerModel
+    );
+  }
+
+  // provider === "openai"
+  const model = process.env.OPENAI_MODEL || "gpt-4o";
   try {
     const response = await withTimeout(openaiAskAssistant({ question, language }), OPENAI_TIMEOUT_MS, "openai");
-    return { response, providerFallback: false, providerError: null };
+    return {
+      response,
+      providerUsed: "openai",
+      providerFallback: false,
+      providerError: null,
+      providerErrorCode: null,
+      providerErrorStatus: null,
+      providerModel: model
+    };
   } catch (error) {
-    console.error("[queries:openai]", error);
-    const providerError = safeErrorMessage(error, "El proveedor de IA no respondio.");
-    try {
-      const response = await mockAskAssistant({ question, language });
-      return { response, providerFallback: true, providerError };
-    } catch (mockError) {
-      // El motor local no deberia fallar nunca (no depende de red ni de
-      // ningun servicio externo): si de todas formas falla, es el ultimo
-      // recurso real antes del catch fatal de mas abajo.
-      console.error("[queries:fatal]", mockError);
-      return { response: buildOfflineFallbackResponse(language), providerFallback: true, providerError };
-    }
+    const diagnostics = classifyProviderError(error);
+    // Log claro y completo (status/code/type/model), SIN el objeto de error
+    // crudo (que podria traer headers internos) y SIN la API key (que
+    // classifyProviderError nunca lee).
+    console.error("[queries:openai]", {
+      status: diagnostics.status,
+      code: diagnostics.code,
+      type: diagnostics.type,
+      model,
+      message: diagnostics.message
+    });
+    const fallback = await localFallback(question, language, "openai", diagnostics.code ?? "unknown_error", diagnostics.message, model);
+    return { ...fallback, providerErrorStatus: diagnostics.status };
   }
+}
+
+// Item 3 del pedido: una respuesta solo puede quedar como "validated_fallback"
+// si (1) hubo coincidencia de categoria real (localMatch no nulo), (2) trae
+// al menos una cita NEC especifica, (3) tiene checklist de campo (evidencia
+// de que la entrada esta completa, no es un stub), y (4) la pregunta
+// original no contiene ningun termino contradictorio de la categoria
+// matcheada (defensa en profundidad ademas del gate ya aplicado durante el
+// matching). Si CUALQUIERA falta, se degrada a unverified: nunca se muestra
+// como "validado" un contenido incompleto o potencialmente cruzado con otro
+// tema.
+function validateFallbackIntegrity(
+  question: string,
+  localMatch: KnowledgeBaseEntry | null,
+  response: AssistantResponse,
+  language: Language
+): { valid: boolean; reason: string | null } {
+  if (!localMatch) {
+    // Categoria legacy/operativa (simbologia, checklist, cotizacion, lectura
+    // de plano): no cita NEC como hecho tecnico autoritativo, no aplica este
+    // gate adicional.
+    return { valid: true, reason: null };
+  }
+  if (!hasSpecificCitation(response.codeReference, language)) {
+    return { valid: false, reason: "sin cita NEC especifica" };
+  }
+  if (response.checklist.length === 0) {
+    return { valid: false, reason: "sin checklist de campo" };
+  }
+  // findContradiction es consciente de negacion (ver lib/knowledge/matchEngine.ts):
+  // una instruccion como "no uses informacion de hospitales" NO cuenta como
+  // termino contradictorio presente, porque la pregunta esta pidiendo
+  // EVITARLO, no preguntando sobre eso.
+  const contradictoryTerms = [...getCategoryExcludeTerms(localMatch.matchCategory), ...(localMatch.excludeTerms ?? [])];
+  const hit = findContradiction(question, contradictoryTerms);
+  if (hit) {
+    return { valid: false, reason: `termino contradictorio detectado en la pregunta: "${hit}"` };
+  }
+  return { valid: true, reason: null };
 }
 
 // Item 8 del pedido: el frontend debe distinguir 4 estados. Se resuelven a
@@ -452,14 +601,22 @@ export async function POST(req: NextRequest) {
     let response: AssistantResponse;
     let category: string;
     let sourceUsed: string;
+    let providerUsed: AiProvider = selectProvider();
     let providerFallback = false;
     let providerError: string | null = null;
+    let providerErrorCode: string | null = null;
+    let providerErrorStatus: number | null = null;
+    let providerModel: string | null = null;
 
     if (isMetaQuestion) {
       const generated = await generateAssistantResponse(question, language);
       response = generated.response;
+      providerUsed = generated.providerUsed;
       providerFallback = generated.providerFallback;
       providerError = generated.providerError;
+      providerErrorCode = generated.providerErrorCode;
+      providerErrorStatus = generated.providerErrorStatus;
+      providerModel = generated.providerModel;
       category = "system_source_explanation";
       sourceUsed = extractSourceFile(response.sourceInfo) ?? FALLBACK_SOURCE_USED;
     } else if (knowledgeMatch) {
@@ -469,8 +626,28 @@ export async function POST(req: NextRequest) {
     } else {
       const generated = await generateAssistantResponse(question, language);
       response = generated.response;
+      providerUsed = generated.providerUsed;
       providerFallback = generated.providerFallback;
       providerError = generated.providerError;
+      providerErrorCode = generated.providerErrorCode;
+      providerErrorStatus = generated.providerErrorStatus;
+      providerModel = generated.providerModel;
+
+      // Item 3: si el proveedor de IA fallo y el motor local SI encontro un
+      // match de categoria (providerFallback=true, response.unverified
+      // todavia false en este punto), se re-valida integridad: cita NEC
+      // especifica + checklist de campo + sin terminos contradictorios en la
+      // pregunta original. Si algo falta, se degrada a la respuesta
+      // unverified fija en vez de mostrar contenido incompleto como
+      // "validado".
+      if (providerFallback && !response.unverified) {
+        const localMatch = findKnowledgeBaseMatch(question);
+        const integrity = validateFallbackIntegrity(question, localMatch, response, language);
+        if (!integrity.valid) {
+          console.error("[queries:integrity]", { reason: integrity.reason, question });
+          response = buildUnverifiedResponse(language);
+        }
+      }
 
       // Si la pregunta prioriza fuentes oficiales explicitamente
       // (forceOfficial) y la respuesta generada NO trae ya una cita
@@ -566,11 +743,16 @@ export async function POST(req: NextRequest) {
         detectedIntent: intentResult.intent,
         sourceUsed,
         source_used: sourceUsed,
+        provider: providerUsed,
         providerFallback,
         answerKind: computeAnswerKind(response, providerFallback),
         unverified: Boolean(response.unverified),
         saveError,
         providerError,
+        providerErrorCode,
+        providerErrorMessage: providerError,
+        providerErrorStatus,
+        providerModel,
         category,
         risk_level: mapRiskLevelToDb(response.riskLevel),
         matchedRule: intentResult.matchedRule,
@@ -598,11 +780,16 @@ export async function POST(req: NextRequest) {
           detectedIntent: "general",
           sourceUsed: FALLBACK_SOURCE_USED,
           source_used: FALLBACK_SOURCE_USED,
+          provider: "mock",
           providerFallback: true,
           answerKind: "unverified",
           unverified: true,
           saveError: "No se pudo completar el flujo normal; no se intento guardar esta consulta.",
           providerError: safeErrorMessage(fatalError, "Error interno inesperado."),
+          providerErrorCode: classifyProviderError(fatalError).code,
+          providerErrorMessage: safeErrorMessage(fatalError, "Error interno inesperado."),
+          providerErrorStatus: classifyProviderError(fatalError).status,
+          providerModel: null,
           category: "fatal_fallback",
           risk_level: mapRiskLevelToDb(fallbackResponse.riskLevel),
           matchedRule: "fatal_error_fallback",
