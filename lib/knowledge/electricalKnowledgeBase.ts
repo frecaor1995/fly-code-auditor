@@ -496,59 +496,61 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "acometida o alimentador"
     ],
     codeReference:
-      "NEC Article 215 (Feeders), 250.24(A)(5)/408.40-408.41 (neutro y bonding en tableros alimentados por feeder), Table 310.16 (ampacidad), 110.14(A) (terminales para aluminio), 300.5/300.9 (ubicaciones humedas) e Informational Note de caida de voltaje en 210.19(A)/215.2(A)",
+      "NEC Article 215 (Feeders), 310.12 (tabla reducida para vivienda - solo si el alimentador abastece la carga COMPLETA de la vivienda), Table 310.16 (ampacidad estandar), 110.14(A)/(B) (terminales y compuesto antioxidante condicional), NEC Chapter 9 Tables 1/4/5 (conduit fill), Article 352.10(F) (PVC Schedule 80 en ubicaciones expuestas a daño fisico), Informational Note de caida de voltaje en 210.19(A)/215.2(A), 250.24(A)(5)/408.40-408.41 (neutro y bonding), 300.5/300.9 (ubicaciones humedas)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
-      "Un tramo de conductores que sale DESPUES del disconnect/medio de desconexion principal hacia otro tablero, dentro de la misma vivienda, se clasifica como alimentador (feeder) bajo NEC Article 215, no como acometida (la acometida es el tramo hasta el primer medio de desconexion del servicio). Para un alimentador monofasico 120/240V a un tablero secundario normalmente se requieren 4 conductores: dos conductores 'calientes', un neutro (conductor puesto a tierra) y un conductor de puesta a tierra de equipo (EGC) dedicado. En el tablero secundario, el neutro debe quedar AISLADO del gabinete (barra de neutro flotante, sin bonding jumper), y el EGC debe conectarse a una barra de tierra separada, unida (bonded) al gabinete: el neutro y la tierra solo se unen en el primer medio de desconexion del servicio, nunca aguas abajo en un panel alimentado por feeder (NEC 250.24(A)(5) y 408.40/408.41). La ampacidad del conductor de aluminio se determina con la tabla de ampacidad del NEC (Table 310.16) segun el tipo de aislamiento (por ejemplo THWN-2/XHHW-2), la temperatura ambiente y el numero de conductores portadores de corriente en la misma tuberia (derating); ademas, los terminales del disconnect, el breaker y el tablero deben estar listados para conductor de aluminio (marcado AL o AL9CU) segun NEC 110.14(A). La proteccion contra sobrecorriente del alimentador se dimensiona para no exceder la ampacidad del conductor (NEC Article 215.3), coordinada con el rating del disconnect principal. A mayor distancia (por ejemplo 75 pies), se debe revisar la caida de voltaje: el NEC no la exige como regla dura en la mayoria de los casos, pero su Informational Note (210.19(A)/215.2(A)) recomienda no exceder 3% en el alimentador y 5% total (alimentador + circuito ramal); con aluminio (mayor resistencia que el cobre) y mas distancia, esto puede obligar a subir de calibre respecto al minimo por ampacidad. Si la tuberia va expuesta al exterior o enterrada, los conductores deben estar listados para ubicacion humeda (NEC 300.5 para instalaciones enterradas y 300.9 para tuberias en ubicaciones humedas). No es posible confirmar el calibre exacto de conductor y de tierra sin: el tipo de aislamiento especifico del conductor de aluminio, la temperatura ambiente del recorrido, el numero de conductores portadores de corriente en la misma tuberia, el rating de temperatura de los terminales del disconnect/tablero, y si el recorrido es expuesto, enterrado o dentro de la vivienda. Estos articulos NEC son referencia general de la base interna (no el texto oficial completo) y deben verificarse contra el NEC oficial vigente, el Master Electrician y el AHJ correspondiente antes de dimensionar o instalar el alimentador.",
+      "Antes de dar un calibre final de conductor, calibre de tierra, tamaño de tuberia o una lista de materiales, esta consulta tiene varias preguntas pendientes (ver 'Preguntas faltantes' abajo): lo siguiente es el marco de decision, no un resultado ya cerrado. 1) Calibre del conductor (NEC 310.12 vs Table 310.16): NO existe un calibre 'universal' para 200A, y 4/0 AWG aluminio y 250 kcmil aluminio NO son intercambiables sin verificar cual tabla aplica. NEC 310.12 (tabla reducida, ~83% de la corriente nominal) SOLO se puede usar cuando el alimentador abastece la carga COMPLETA de la vivienda unifamiliar (no un subpanel parcial, no un garaje separado, no una adicion) Y no se requieren factores de ajuste o correccion; en ese caso, 4/0 AWG aluminio es una opcion tipica para 200A. Si el alimentador NO abastece la carga completa de la vivienda -que es lo mas comun para un 'tablero secundario'/subpanel- o si aplican factores de ajuste (temperatura ambiente elevada, mas de 3 conductores portadores de corriente en la misma tuberia, etc.), el calibre se determina con NEC Table 310.16 segun el rating de temperatura de los terminales (60°C/75°C), el tipo de aislamiento del conductor (ej. THWN-2/XHHW-2), la temperatura ambiente real y los factores de correccion/ajuste aplicables; esto puede resultar en un calibre mayor, como 250 kcmil aluminio o mas. 2) Caida de voltaje: no se puede dar un porcentaje (ej. 'aprox. 1%') sin la carga calculada real, la corriente usada, el conductor exacto evaluado, la temperatura considerada, el factor de potencia de la carga, y un calculo separado para la porcion de 120V (linea-neutro) y la de 240V (linea-linea) del circuito. El NEC no exige un limite de caida de voltaje como regla general obligatoria: el 3% (ramal) / 5% (total) es una Informational Note (recomendacion) en 210.19(A)/215.2(A), no una regla dura, salvo que el AHJ o el diseño del proyecto la exijan explicitamente. 3) Tamaño de tuberia (conduit fill): no se selecciona un tamaño (ej. '2 pulgadas') sin calcular el llenado real con NEC Chapter 9 Tables 1, 4 y 5, segun la cantidad de conductores, su calibre, el tipo de aislamiento y el material de la tuberia. 4) Material de tuberia: no se recomienda PVC Schedule 40 de forma general. Debe confirmarse si el recorrido es interior, exterior, enterrado o expuesto: donde la tuberia quede expuesta a daño fisico se requiere PVC Schedule 80 (NEC 352.10(F) - Schedule 40 no esta identificado para esa condicion) u otro metodo listado equivalente. 5) Compuesto antioxidante: se menciona SOLO si las instrucciones o el listado del fabricante de las terminales/conectores lo requieren o lo permiten explicitamente; no es un requisito general del NEC ni un paso automatico. En el tablero secundario, ademas, el neutro debe quedar AISLADO del gabinete (barra de neutro flotante) y el EGC debe conectarse a una barra de tierra separada bonded al gabinete (NEC 250.24(A)(5) y 408.40/408.41): el neutro y la tierra solo se unen en el primer medio de desconexion del servicio.",
     shortAnswerEn:
-      "A conductor run that leaves AFTER the main disconnect/service disconnecting means toward another panel, within the same dwelling, is classified as a feeder under NEC Article 215, not as the service (the service is the run up to the first service disconnecting means). For a single-phase 120/240V feeder to a subpanel, 4 conductors are normally required: two 'hot' conductors, a neutral (grounded conductor), and a dedicated equipment grounding conductor (EGC). At the subpanel, the neutral must be ISOLATED from the enclosure (floating neutral bar, no bonding jumper), and the EGC must connect to a separate ground bar bonded to the enclosure: the neutral and ground are only bonded together at the first service disconnecting means, never downstream at a feeder-fed panel (NEC 250.24(A)(5) and 408.40/408.41). The aluminum conductor's ampacity is determined from the NEC ampacity table (Table 310.16) based on insulation type (e.g. THWN-2/XHHW-2), ambient temperature, and the number of current-carrying conductors in the same raceway (derating); in addition, the disconnect's, breaker's, and panel's terminals must be listed for aluminum conductors (marked AL or AL9CU) per NEC 110.14(A). Feeder overcurrent protection is sized to not exceed the conductor's ampacity (NEC Article 215.3), coordinated with the main disconnect's rating. At longer distances (e.g. 75 feet), voltage drop should be reviewed: the NEC does not mandate it as a hard rule in most cases, but its Informational Note (210.19(A)/215.2(A)) recommends not exceeding 3% on the feeder and 5% total (feeder + branch circuit); with aluminum (higher resistance than copper) and more distance, this can require upsizing beyond the ampacity-only minimum. If the raceway runs exposed outdoors or underground, conductors must be listed for wet locations (NEC 300.5 for underground installations and 300.9 for raceways in wet locations). The exact conductor and grounding conductor size cannot be confirmed without: the aluminum conductor's specific insulation type, the ambient temperature of the run, the number of current-carrying conductors in the same raceway, the temperature rating of the disconnect's/panel's terminals, and whether the run is exposed, underground, or inside the dwelling. These NEC articles are general references from the internal base (not the full official text) and must be verified against the official current NEC, the Master Electrician, and the applicable AHJ before sizing or installing the feeder.",
+      "Before giving a final conductor size, grounding conductor size, conduit size, or a materials list, this question has several pending items (see 'Missing questions' below): the following is the decision framework, not a closed result. 1) Conductor size (NEC 310.12 vs Table 310.16): there is NO 'universal' size for 200A, and 4/0 AWG aluminum and 250 kcmil aluminum are NOT interchangeable without verifying which table applies. NEC 310.12 (the reduced ~83% table) can ONLY be used when the feeder supplies the ENTIRE load of the one-family dwelling (not a partial subpanel, not a detached garage, not an addition) AND no adjustment or correction factors are required; in that case, 4/0 AWG aluminum is a typical option for 200A. If the feeder does NOT supply the entire dwelling load -which is the most common case for a 'subpanel'- or if adjustment factors apply (elevated ambient temperature, more than 3 current-carrying conductors in the same raceway, etc.), the size is determined using NEC Table 310.16 based on the terminal temperature rating (60°C/75°C), the conductor's insulation type (e.g. THWN-2/XHHW-2), the actual ambient temperature, and applicable correction/adjustment factors; this can result in a larger size, such as 250 kcmil aluminum or more. 2) Voltage drop: a percentage (e.g. 'approx. 1%') cannot be given without the actual calculated load, the current used, the exact conductor evaluated, the temperature considered, the load's power factor, and a separate calculation for the 120V (line-to-neutral) and 240V (line-to-line) portions of the circuit. The NEC does not mandate a voltage drop limit as a general rule: the 3% (branch)/5% (total) figure is an Informational Note (recommendation) in 210.19(A)/215.2(A), not a hard rule, unless the AHJ or the project design explicitly requires it. 3) Conduit size (conduit fill): a size (e.g. '2 inches') is not selected without calculating actual fill using NEC Chapter 9 Tables 1, 4, and 5, based on the number of conductors, their size, insulation type, and raceway material. 4) Raceway material: PVC Schedule 40 is not recommended generically. It must be confirmed whether the run is interior, exterior, underground, or exposed: where the raceway is exposed to physical damage, PVC Schedule 80 is required (NEC 352.10(F) - Schedule 40 is not identified for that condition) or another equivalent listed method. 5) Antioxidant compound: mentioned ONLY if the terminal/connector manufacturer's instructions or listing require or explicitly permit it; it is not a general NEC requirement or an automatic step. At the subpanel, the neutral must also be ISOLATED from the enclosure (floating neutral bar) and the EGC must connect to a separate ground bar bonded to the enclosure (NEC 250.24(A)(5) and 408.40/408.41): the neutral and ground are only bonded together at the first service disconnecting means.",
     riskLevel: "alto",
     checklistEs: [
-      "Confirmar que el tramo despues del disconnect principal se trata como alimentador (NEC Article 215), no como acometida",
-      "Confirmar 4 conductores: dos calientes, un neutro y un EGC dedicado",
-      "Verificar que el neutro quede aislado del gabinete en el tablero secundario (barra de neutro flotante)",
-      "Verificar barra de tierra separada, unida (bonded) al gabinete del tablero secundario",
-      "Confirmar tipo de aislamiento del conductor de aluminio (ej. THWN-2/XHHW-2) y su ampacidad en Table 310.16",
-      "Confirmar terminales del disconnect, el breaker y el tablero listados para aluminio (AL o AL9CU)",
-      "Confirmar que la proteccion de sobrecorriente del alimentador este coordinada con el disconnect principal",
-      "Calcular caida de voltaje para la distancia real y ajustar calibre si excede el 3% recomendado en el alimentador",
-      "Confirmar si la tuberia es exterior o enterrada y usar conductor listado para ubicacion humeda",
-      "Confirmar permiso e inspeccion con el AHJ correspondiente antes de instalar"
+      "Confirmar si el alimentador abastece la carga COMPLETA de la vivienda (requisito para NEC 310.12) o solo una parte",
+      "Si 310.12 no aplica: calcular calibre con Table 310.16 + rating de terminales + aislamiento + temperatura ambiente + factores de ajuste",
+      "No presentar 4/0 AWG Al y 250 kcmil Al como intercambiables sin resolver el punto anterior",
+      "Calcular caida de voltaje con carga real, corriente, conductor exacto, temperatura y factor de potencia, por separado para 120V y 240V",
+      "Confirmar si el 3%/5% es una recomendacion (Informational Note) o un requisito exigido por el AHJ/diseño del proyecto",
+      "Calcular conduit fill con NEC Chapter 9 Tables 1/4/5 antes de indicar un tamaño de tuberia",
+      "Confirmar si el recorrido es interior, exterior, enterrado o expuesto, y usar PVC Schedule 80 (u equivalente) si hay riesgo de daño fisico",
+      "Verificar si el fabricante de las terminales/conectores exige o permite compuesto antioxidante antes de indicarlo",
+      "Confirmar 4 conductores: dos calientes, un neutro aislado y un EGC dedicado a barra de tierra separada",
+      "No emitir lista final de materiales hasta resolver todas las preguntas pendientes"
     ],
     checklistEn: [
-      "Confirm the run after the main disconnect is treated as a feeder (NEC Article 215), not as the service",
-      "Confirm 4 conductors: two hots, a neutral, and a dedicated EGC",
-      "Verify the neutral is isolated from the enclosure at the subpanel (floating neutral bar)",
-      "Verify a separate ground bar, bonded to the subpanel's enclosure",
-      "Confirm the aluminum conductor's insulation type (e.g. THWN-2/XHHW-2) and its ampacity per Table 310.16",
-      "Confirm the disconnect's, breaker's, and panel's terminals are listed for aluminum (AL or AL9CU)",
-      "Confirm the feeder's overcurrent protection is coordinated with the main disconnect",
-      "Calculate voltage drop for the actual distance and upsize if it exceeds the recommended 3% on the feeder",
-      "Confirm whether the raceway is exposed outdoors or underground and use conductor listed for wet locations",
-      "Confirm permit and inspection with the applicable AHJ before installing"
+      "Confirm whether the feeder supplies the ENTIRE dwelling load (required for NEC 310.12) or only part of it",
+      "If 310.12 does not apply: size using Table 310.16 + terminal rating + insulation + ambient temperature + adjustment factors",
+      "Do not present 4/0 AWG Al and 250 kcmil Al as interchangeable without resolving the item above",
+      "Calculate voltage drop with actual load, current, exact conductor, temperature, and power factor, separately for 120V and 240V",
+      "Confirm whether the 3%/5% figure is a recommendation (Informational Note) or a requirement imposed by the AHJ/project design",
+      "Calculate conduit fill using NEC Chapter 9 Tables 1/4/5 before specifying a conduit size",
+      "Confirm whether the run is interior, exterior, underground, or exposed, and use PVC Schedule 80 (or equivalent) if exposed to physical damage",
+      "Verify whether the terminal/connector manufacturer requires or permits antioxidant compound before specifying it",
+      "Confirm 4 conductors: two hots, an isolated neutral, and a dedicated EGC to a separate ground bar",
+      "Do not issue a final materials list until all pending questions are resolved"
     ],
     missingQuestionsEs: [
-      "Tipo de aislamiento exacto del conductor de aluminio disponible o especificado",
-      "Temperatura ambiente del recorrido de tuberia",
-      "Numero de conductores portadores de corriente en la misma tuberia (para derating)",
-      "Rating de temperatura de los terminales del disconnect y del tablero",
-      "Si el recorrido es expuesto, enterrado o dentro de la vivienda"
+      "El alimentador abastece la carga COMPLETA de la vivienda o solo una parte (subpanel parcial, garaje separado, adicion)",
+      "Tipo de aislamiento exacto del conductor (ej. THWN-2, XHHW-2) y rating de temperatura de los terminales (60°C o 75°C)",
+      "Temperatura ambiente real del recorrido y numero de conductores portadores de corriente en la misma tuberia",
+      "Si el recorrido es interior, exterior, enterrado o expuesto a daño fisico",
+      "Carga calculada real (amperios) y factor de potencia, para el calculo de caida de voltaje",
+      "Si el fabricante de las terminales/conectores requiere o permite compuesto antioxidante"
     ],
     missingQuestionsEn: [
-      "Exact insulation type of the available/specified aluminum conductor",
-      "Ambient temperature of the raceway run",
-      "Number of current-carrying conductors in the same raceway (for derating)",
-      "Temperature rating of the disconnect's and panel's terminals",
-      "Whether the run is exposed, underground, or inside the dwelling"
+      "Whether the feeder supplies the ENTIRE dwelling load or only part of it (partial subpanel, detached garage, addition)",
+      "Exact conductor insulation type (e.g. THWN-2, XHHW-2) and terminal temperature rating (60°C or 75°C)",
+      "Actual ambient temperature of the run and number of current-carrying conductors in the same raceway",
+      "Whether the run is interior, exterior, underground, or exposed to physical damage",
+      "Actual calculated load (amperage) and power factor, for the voltage drop calculation",
+      "Whether the terminal/connector manufacturer requires or permits antioxidant compound"
     ],
     recommendationEs:
-      "Escalar al Master Electrician para el calculo final de calibre, derating y caida de voltaje antes de cotizar o instalar; confirmar el requisito de permiso con el AHJ correspondiente.",
+      "No se puede emitir un calibre final de conductor, tierra, tamaño de tuberia ni una lista de materiales sin resolver las preguntas pendientes. Escalar al Master Electrician para el calculo final (310.12 vs Table 310.16, conduit fill, caida de voltaje) antes de cotizar o instalar.",
     recommendationEn:
-      "Escalate to the Master Electrician for the final conductor sizing, derating, and voltage drop calculation before quoting or installing; confirm the permit requirement with the applicable AHJ.",
+      "A final conductor size, grounding conductor size, conduit size, or materials list cannot be issued without resolving the pending questions. Escalate to the Master Electrician for the final calculation (310.12 vs Table 310.16, conduit fill, voltage drop) before quoting or installing.",
     warningEs:
-      "Guia preliminar interna basada en NEC 2023 y practica general; no reemplaza el texto oficial completo del NEC. El calibre final de conductor y de tierra, y la aprobacion del alimentador, requieren verificacion del Master Electrician y del AHJ antes de instalar.",
+      "Guia preliminar interna basada en NEC 2023 y practica general; no reemplaza el texto oficial completo del NEC. El calibre final de conductor y de tierra, el tamaño de tuberia, y la aprobacion del alimentador, requieren verificacion del Master Electrician y del AHJ antes de instalar.",
     warningEn:
-      "Preliminary internal guide based on NEC 2023 and general practice; it does not replace the full official NEC text. The final conductor and grounding conductor size, and feeder approval, require Master Electrician and AHJ verification before installing."
+      "Preliminary internal guide based on NEC 2023 and general practice; it does not replace the full official NEC text. The final conductor and grounding conductor size, conduit size, and feeder approval require Master Electrician and AHJ verification before installing."
   },
   {
     id: "kb-panel-upgrade",
@@ -809,7 +811,7 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
   {
     id: "kb-exterior-wet-locations",
     matchCategory: "exterior_wet_locations",
-    category: "Receptaculos en exteriores / lugares humedos y mojados (NEC 406.9)",
+    category: "Receptaculos en exteriores / lugares humedos y mojados (NEC 406.9 / 210.8)",
     keywords: [
       "receptaculos exteriores",
       "receptaculo exterior",
@@ -825,6 +827,9 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "weather resistant",
       "weatherproof",
       "in-use cover",
+      "while-in-use",
+      "extra duty",
+      "extra-duty",
       "tapa in-use",
       "a prueba de intemperie",
       "a la intemperie",
@@ -832,47 +837,55 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "exteriores",
       "intemperie",
       "humedo",
-      "mojado"
+      "mojado",
+      "gfci exterior",
+      "outdoor gfci"
     ],
-    codeReference: "NEC Article 406.9 (Receptacles in Damp and Wet Locations) y NEC Article 210.8 (GFCI Protection)",
+    // Terminos contradictorios propios de esta entrada, ademas del gate
+    // simetrico de healthcare que ya aplica CATEGORY_GATES en matchEngine.ts.
+    excludeTerms: ["hospital", "hospitales", "paciente", "patient care", "nfpa 99", "nec 517"],
+    codeReference:
+      "NEC 406.9(A) (lugares humedos), NEC 406.9(B)/406.9(B)(1) (lugares mojados: receptaculo weather-resistant y cubierta while-in-use extra-duty), NEC 210.8(A)(3) (GFCI en exteriores de vivienda) y NEC 210.8(F) (GFCI para salidas exteriores, NEC 2023)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
-      "Los receptaculos instalados en exteriores o en lugares humedos/mojados se rigen por NEC Article 406.9, que distingue dos condiciones: lugares humedos (damp locations, por ejemplo un area cubierta bajo techo o porche protegido de la lluvia directa) y lugares mojados (wet locations, expuestos directamente a la lluvia o al agua). En ambos casos, todo receptaculo de 125V/250V hasta 20A instalado en el exterior debe ser del tipo 'weather-resistant' (resistente a la intemperie, marcado WR), segun NEC 406.9(B)(1), sin importar si la ubicacion es damp o wet. Para lugares mojados se exige ademas una tapa 'in-use' (a prueba de intemperie incluso con el enchufe conectado), tambien segun 406.9(B)(1); para lugares humedos cubiertos, una tapa weatherproof estandar (que sella solo cuando esta cerrada) puede ser suficiente si el receptaculo no queda expuesto directamente a la lluvia. La mayoria de estos receptaculos exteriores tambien requieren proteccion GFCI segun NEC Article 210.8. La clasificacion exacta de la ubicacion (humeda o mojada) depende de las condiciones fisicas reales del sitio (si esta bajo techo, si tiene proteccion lateral contra lluvia, altura sobre el nivel del piso, etc.), por lo que siempre debe confirmarse en sitio antes de especificar el receptaculo y la tapa.",
+      "Los receptaculos instalados en exteriores o en lugares humedos/mojados se rigen principalmente por NEC 406.9, con proteccion GFCI exigida por NEC 210.8. 1) Humedo (damp) vs mojado (wet): un lugar humedo es un area protegida de la lluvia directa (por ejemplo bajo un techo, porche o alero con proteccion lateral suficiente); un lugar mojado esta expuesto directamente a la lluvia o al agua (por ejemplo a la intemperie sin cubierta). La clasificacion depende de las condiciones fisicas reales del sitio, no de la palabra 'exterior' por si sola. 2) GFCI: NEC 210.8(A)(3) exige proteccion GFCI para receptaculos en exteriores dentro de la lista de ubicaciones de vivienda (dwelling units); ademas, NEC 210.8(F) (seccion dedicada a 'Outdoor Outlets' en NEC 2023) amplia el requisito de GFCI a salidas exteriores en general, hasta 50A monofasico, con excepciones puntuales (por ejemplo cierto equipo HVAC listado). En una aplicacion residencial exterior tipica (patio, jardin, cochera), el receptaculo debe tener proteccion GFCI. 3) Weather-resistant (WR): todo receptaculo no bloqueable de 15A o 20A, 125V/250V instalado en el exterior -sea humedo o mojado- debe estar listado como weather-resistant (marcado WR), segun NEC 406.9(A) para humedo y NEC 406.9(B)(1) para mojado; el marcado WR es sobre el receptaculo mismo, es un requisito aparte de la tapa. 4) Cubierta cuando NO esta en uso (lugar humedo): NEC 406.9(A) exige que la cubierta sea a prueba de intemperie solo cuando el receptaculo esta cerrado (sin el enchufe conectado); una tapa abatible estandar ('flip lid') normalmente es suficiente si el area esta protegida de la lluvia directa. 5) Cubierta while-in-use / extra-duty (lugar mojado): NEC 406.9(B)(1) exige una cubierta a prueba de intemperie incluso con el enchufe conectado ('while-in-use'), y esa capucha (outlet box hood) debe estar listada e identificada como 'extra duty'; esto aplica tipicamente a cualquier receptaculo exterior sin proteccion alguna contra la lluvia (por ejemplo en una pared exterior sin alero). 6) Aplicacion residencial: en una vivienda unifamiliar, la mayoria de los receptaculos exteriores (patio, fachada, jardin, cochera abierta) se consideran lugares mojados a menos que esten claramente protegidos por un techo/alero con cobertura lateral suficiente, por lo que en la practica se instala una cubierta extra-duty while-in-use como estandar, con receptaculo WR y proteccion GFCI. Esta es una guia interna preliminar en palabras propias (no el texto oficial del NEC): verifique la edicion exacta adoptada por el AHJ antes de instalar.",
     shortAnswerEn:
-      "Receptacles installed outdoors or in damp/wet locations are governed by NEC Article 406.9, which distinguishes two conditions: damp locations (for example, a covered area under a roof or porch protected from direct rain) and wet locations (directly exposed to rain or water). In both cases, every 125V/250V receptacle up to 20A installed outdoors must be a listed weather-resistant type (marked WR) per NEC 406.9(B)(1), regardless of whether the location is damp or wet. Wet locations additionally require an 'in-use' cover (weatherproof even with the attachment plug inserted), also per 406.9(B)(1); for covered damp locations, a standard weatherproof cover (weatherproof only while closed) may be sufficient if the receptacle is not directly exposed to rain. Most of these outdoor receptacles also require GFCI protection per NEC Article 210.8. The exact classification of the location (damp or wet) depends on the actual site conditions (whether it's covered, side protection from rain, height above grade, etc.), so it must always be confirmed on site before specifying the receptacle and cover.",
+      "Receptacles installed outdoors or in damp/wet locations are governed primarily by NEC 406.9, with GFCI protection required by NEC 210.8. 1) Damp vs wet: a damp location is an area protected from direct rain (for example, under a roof, porch, or eave with sufficient side protection); a wet location is directly exposed to rain or water (for example, unprotected outdoors). The classification depends on actual site conditions, not on the word 'outdoor' alone. 2) GFCI: NEC 210.8(A)(3) requires GFCI protection for receptacles outdoors within the dwelling unit locations list; in addition, NEC 210.8(F) (a dedicated 'Outdoor Outlets' section in NEC 2023) broadens the GFCI requirement to outdoor outlets in general, up to 50A single-phase, with specific exceptions (for example, certain listed HVAC equipment). For a typical residential exterior application (patio, yard, carport), the receptacle must have GFCI protection. 3) Weather-resistant (WR): every 15A or 20A, 125V/250V nonlocking receptacle installed outdoors -whether damp or wet- must be listed weather-resistant type (marked WR), per NEC 406.9(A) for damp and NEC 406.9(B)(1) for wet; the WR marking is on the receptacle itself, a requirement separate from the cover. 4) Cover when NOT in use (damp location): NEC 406.9(A) requires the cover to be weatherproof only when the receptacle is closed (attachment plug not inserted); a standard flip-lid cover is normally sufficient if the area is protected from direct rain. 5) While-in-use / extra-duty cover (wet location): NEC 406.9(B)(1) requires a cover that is weatherproof even with the attachment plug inserted ('while-in-use'), and that outlet box hood must be listed and identified as 'extra duty'; this typically applies to any outdoor receptacle with no rain protection at all (for example, on an exterior wall with no eave). 6) Residential application: for a single-family dwelling, most outdoor receptacles (patio, front of house, yard, open carport) are treated as wet locations unless clearly protected by a roof/eave with sufficient side coverage, so in practice an extra-duty while-in-use cover is installed as standard, along with a WR receptacle and GFCI protection. This is a preliminary internal guide in plain language (not the official NEC text): verify the exact edition adopted by the AHJ before installing.",
     riskLevel: "medio",
     checklistEs: [
       "Confirmar si la ubicacion es damp (cubierta) o wet (expuesta directamente a lluvia/agua)",
-      "Verificar que el receptaculo especificado sea tipo weather-resistant (WR) listado",
-      "Confirmar tapa in-use para lugares mojados; tapa weatherproof estandar puede bastar en lugares humedos cubiertos",
-      "Verificar proteccion GFCI en el circuito del receptaculo",
-      "Confirmar listado UL del receptaculo y la tapa para la ubicacion exacta"
+      "Verificar proteccion GFCI en el circuito (NEC 210.8(A)(3) / 210.8(F))",
+      "Verificar que el receptaculo especificado sea tipo weather-resistant (WR) listado (NEC 406.9(A)/(B))",
+      "Confirmar cubierta weatherproof estandar (solo cuando esta cerrada) para lugares humedos cubiertos",
+      "Confirmar cubierta while-in-use listada como extra-duty para lugares mojados expuestos",
+      "En aplicacion residencial, tratar el receptaculo como lugar mojado salvo proteccion clara contra lluvia directa"
     ],
     checklistEn: [
       "Confirm whether the location is damp (covered) or wet (directly exposed to rain/water)",
-      "Verify the specified receptacle is a listed weather-resistant (WR) type",
-      "Confirm an in-use cover for wet locations; a standard weatherproof cover may be sufficient for covered damp locations",
-      "Verify GFCI protection on the receptacle's circuit",
-      "Confirm the UL listing of the receptacle and cover for the exact location"
+      "Verify GFCI protection on the circuit (NEC 210.8(A)(3) / 210.8(F))",
+      "Verify the specified receptacle is a listed weather-resistant (WR) type (NEC 406.9(A)/(B))",
+      "Confirm a standard weatherproof cover (weatherproof only while closed) for covered damp locations",
+      "Confirm an extra-duty listed while-in-use cover for exposed wet locations",
+      "For residential applications, treat the receptacle as a wet location unless clearly protected from direct rain"
     ],
     missingQuestionsEs: [
-      "Ubicacion exacta (cubierta bajo techo vs expuesta directamente a la lluvia)",
-      "Si el receptaculo estara en uso con el enchufe conectado de forma permanente (requiere tapa in-use)",
-      "Amperaje y voltaje del receptaculo"
+      "Ubicacion exacta (cubierta bajo techo/alero vs expuesta directamente a la lluvia)",
+      "Si el receptaculo estara en uso con el enchufe conectado de forma permanente (requiere cubierta while-in-use)",
+      "Amperaje y voltaje del receptaculo, y si el proyecto es una vivienda (dwelling unit) u otra ocupacion"
     ],
     missingQuestionsEn: [
-      "Exact location (covered under a roof vs directly exposed to rain)",
-      "Whether the receptacle will be used with the attachment plug inserted permanently (requires an in-use cover)",
-      "Receptacle amperage and voltage"
+      "Exact location (covered under a roof/eave vs directly exposed to rain)",
+      "Whether the receptacle will be used with the attachment plug inserted permanently (requires a while-in-use cover)",
+      "Receptacle amperage and voltage, and whether the project is a dwelling unit or another occupancy"
     ],
     recommendationEs:
-      "Confirmar la clasificacion exacta de la ubicacion (damp o wet) y verificar el listado weather-resistant del receptaculo y la tapa in-use antes de instalar.",
+      "Confirmar la clasificacion exacta de la ubicacion (damp o wet), la proteccion GFCI, el listado weather-resistant del receptaculo y el tipo de cubierta (weatherproof estandar o while-in-use extra-duty) antes de instalar.",
     recommendationEn:
-      "Confirm the exact classification of the location (damp or wet) and verify the receptacle's weather-resistant listing and the in-use cover before installing.",
+      "Confirm the exact classification of the location (damp or wet), GFCI protection, the receptacle's weather-resistant listing, and the cover type (standard weatherproof or extra-duty while-in-use) before installing.",
     warningEs:
-      "Guia preliminar interna basada en NEC 2023 y practica general; no reemplaza el texto oficial completo de NEC Article 406.9. Verificar el articulo oficial, la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
+      "Guia preliminar interna basada en NEC 2023 y practica general; no reemplaza el texto oficial completo de NEC 406.9 ni 210.8. Verificar el articulo oficial, la edicion exacta adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
     warningEn:
-      "Preliminary internal guide based on NEC 2023 and general practice; it does not replace the full official text of NEC Article 406.9. Verify the official article, the edition adopted by the AHJ, and Master Electrician approval before installing."
+      "Preliminary internal guide based on NEC 2023 and general practice; it does not replace the full official text of NEC 406.9 or 210.8. Verify the official article, the exact edition adopted by the AHJ, and Master Electrician approval before installing."
   },
   {
     id: "kb-mc-cable",

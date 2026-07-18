@@ -694,7 +694,35 @@ export async function POST(req: NextRequest) {
         checklist: mergedChecklist(response.checklist, knowledgeMatch),
         finalVerification: buildFinalVerification(language, sourcesToShow)
       };
+
+      // No emitir lista final de materiales mientras haya preguntas
+      // pendientes: refuerzo programatico (no depende solo de que el
+      // proveedor de IA respete el prompt) que se agrega a "doNotAssume"
+      // para que quede visible junto a "Cuando no asumir" en la tarjeta.
+      if (response.missingQuestions.length > 0) {
+        const pendingNoteEs =
+          "Esta respuesta NO es una lista final de materiales (calibres, tuberia, accesorios): quedan preguntas pendientes sin responder (ver Preguntas faltantes) que deben resolverse antes de fijar cualquier calibre o cantidad definitiva.";
+        const pendingNoteEn =
+          "This response is NOT a final materials list (conductor sizes, conduit, fittings): there are unanswered pending questions (see Missing questions) that must be resolved before fixing any final size or quantity.";
+        const pendingNote =
+          language === "en" ? pendingNoteEn : language === "es" ? pendingNoteEs : `${pendingNoteEs}\n${pendingNoteEn}`;
+        response = { ...response, doNotAssume: `${pendingNote}\n\n${response.doNotAssume ?? ""}`.trim() };
+      }
     }
+
+    // Item 6: metadatos de transparencia en TODA respuesta visible (meta,
+    // unverified, backed y validated_fallback por igual). Se adjuntan a
+    // "response" -no solo al body del JSON- para que queden persistidos por
+    // createQuery mas abajo y sigan siendo visibles despues en el
+    // historial, no solo en la consulta en vivo (AssistantResponseCard lee
+    // estos campos directamente de response.*).
+    response = {
+      ...response,
+      provider: providerUsed,
+      providerModel,
+      answerKind: computeAnswerKind(response, providerFallback),
+      internalSourceUsed: sourceUsed
+    };
 
     // (d) La respuesta ya esta lista para el usuario en este punto. (e) el
     // guardado ocurre a continuacion, pero envuelto en su propio try/catch:
@@ -745,7 +773,7 @@ export async function POST(req: NextRequest) {
         source_used: sourceUsed,
         provider: providerUsed,
         providerFallback,
-        answerKind: computeAnswerKind(response, providerFallback),
+        answerKind: response.answerKind ?? computeAnswerKind(response, providerFallback),
         unverified: Boolean(response.unverified),
         saveError,
         providerError,
@@ -769,7 +797,13 @@ export async function POST(req: NextRequest) {
     // si construir ESO tambien falla se devuelve 500.
     console.error("[queries:fatal]", fatalError);
     try {
-      const fallbackResponse = buildOfflineFallbackResponse(language);
+      const fallbackResponse: AssistantResponse = {
+        ...buildOfflineFallbackResponse(language),
+        provider: "mock",
+        providerModel: null,
+        answerKind: "unverified",
+        internalSourceUsed: FALLBACK_SOURCE_USED
+      };
       const query = buildUnsavedQueryRecord({ projectId, userEmail: user.email, mode, language, question, response: fallbackResponse });
       return NextResponse.json(
         {

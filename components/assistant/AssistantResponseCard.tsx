@@ -34,7 +34,17 @@ const LABELS = {
     panels: "Paneles identificados",
     circuits: "Circuitos visibles",
     notes: "Notas relevantes",
-    missingInfo: "Informacion faltante"
+    missingInfo: "Informacion faltante",
+    metaProvider: "Proveedor",
+    metaModel: "Modelo",
+    metaAnswerKind: "Estado",
+    metaSource: "Fuente interna",
+    providerGemini: "Gemini",
+    providerOpenai: "OpenAI",
+    providerMock: "Motor local",
+    answerKindBacked: "Respaldada",
+    answerKindValidatedFallback: "Fallback validado",
+    answerKindUnverified: "Sin verificar"
   },
   en: {
     shortAnswer: "1. Short answer",
@@ -58,15 +68,67 @@ const LABELS = {
     panels: "Identified panels",
     circuits: "Visible circuits",
     notes: "Relevant notes",
-    missingInfo: "Missing information"
+    missingInfo: "Missing information",
+    metaProvider: "Provider",
+    metaModel: "Model",
+    metaAnswerKind: "Status",
+    metaSource: "Internal source",
+    providerGemini: "Gemini",
+    providerOpenai: "OpenAI",
+    providerMock: "Local engine",
+    answerKindBacked: "Backed",
+    answerKindValidatedFallback: "Validated fallback",
+    answerKindUnverified: "Unverified"
   }
 } as const;
 
+const ANSWER_KIND_STYLES: Record<string, string> = {
+  backed: "border-green-600/50 bg-green-600/10 text-green-400",
+  validated_fallback: "border-fly-gold/50 bg-fly-gold/10 text-fly-gold",
+  unverified: "border-risk-critical/50 bg-risk-critical/10 text-risk-critical"
+};
+
+const PROVIDER_LABEL_KEY: Record<string, keyof (typeof LABELS)["es"]> = {
+  gemini: "providerGemini",
+  openai: "providerOpenai",
+  mock: "providerMock"
+};
+
+const ANSWER_KIND_LABEL_KEY: Record<string, keyof (typeof LABELS)["es"]> = {
+  backed: "answerKindBacked",
+  validated_fallback: "answerKindValidatedFallback",
+  unverified: "answerKindUnverified"
+};
+
 export function AssistantResponseCard({ response, uiLang, actions }: Props) {
   const L = LABELS[uiLang];
+  const hasMetadata = Boolean(response.provider || response.answerKind || response.internalSourceUsed);
 
   return (
     <div className="rounded-2xl border border-fly-gray bg-fly-charcoal p-5 space-y-4">
+      {/* Item 6: metadatos de transparencia visibles en TODA respuesta
+          (provider, modelo, estado de confianza, fuente interna). */}
+      {hasMetadata && (
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          {response.provider && (
+            <span className="rounded-full border border-fly-gray/60 px-2 py-1 text-fly-lightgray/80">
+              {L.metaProvider}: {L[PROVIDER_LABEL_KEY[response.provider]] ?? response.provider}
+              {response.providerModel ? ` (${response.providerModel})` : ""}
+            </span>
+          )}
+          {response.answerKind && (
+            <span className={`rounded-full border px-2 py-1 font-medium ${ANSWER_KIND_STYLES[response.answerKind] ?? "border-fly-gray/60 text-fly-lightgray/80"}`}>
+              {L.metaAnswerKind}: {L[ANSWER_KIND_LABEL_KEY[response.answerKind]] ?? response.answerKind}
+            </span>
+          )}
+          {response.internalSourceUsed && (
+            <span className="rounded-full border border-fly-gray/60 px-2 py-1 text-fly-lightgray/80">
+              {L.metaSource}: {response.internalSourceUsed}
+            </span>
+          )}
+        </div>
+      )}
+
       <section>
         <div className="flex items-center justify-between gap-2 mb-1">
           <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide">{L.shortAnswer}</h3>

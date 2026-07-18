@@ -69,6 +69,19 @@ export interface AssistantResponse {
   // app/api/queries/route.ts y el frontend para mostrar este caso como
   // "sin informacion verificable" en vez de como una respuesta tecnica.
   unverified?: boolean;
+  // Metadatos de transparencia (deben mostrarse en toda respuesta visible,
+  // ver components/assistant/AssistantResponseCard.tsx): que proveedor
+  // genero esta respuesta (gemini/openai/mock), su modelo exacto, el
+  // resultado de la clasificacion de confianza, y de que fuente interna
+  // salio el contenido (Supabase knowledge_entries, un id de
+  // electricalKnowledgeBase.ts, o el motor de reglas generico). Se
+  // completan en app/api/queries/route.ts justo antes de guardar/devolver
+  // la respuesta, para que queden persistidos y visibles tambien en el
+  // historial, no solo en la consulta en vivo.
+  provider?: "gemini" | "openai" | "mock";
+  providerModel?: string | null;
+  answerKind?: "backed" | "validated_fallback" | "unverified";
+  internalSourceUsed?: string;
 }
 
 export type QueryMode = "texto" | "voz";
