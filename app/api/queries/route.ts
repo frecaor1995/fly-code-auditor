@@ -26,6 +26,19 @@ import type { AssistantResponse, Language, QueryMode, QueryRecord } from "@/lib/
 
 const FALLBACK_SOURCE_USED = "Fly Electric Solutions LLC internal fallback";
 
+// Limite explicito de longitud de pregunta (hallazgo de auditoria de FASE D
+// de la suite de pruebas: antes no existia ningun tope, solo se validaba
+// que no estuviera vacia). Configurable via MAX_QUERY_LENGTH; 5000
+// caracteres por defecto. Se valida ANTES de tocar Supabase o cualquier
+// proveedor de IA: una pregunta que excede el limite nunca debe generar
+// costo de red/computo en ningun servicio externo.
+const DEFAULT_MAX_QUERY_LENGTH = 5000;
+
+function maxQueryLength(): number {
+  const configured = Number(process.env.MAX_QUERY_LENGTH);
+  return Number.isFinite(configured) && configured > 0 ? configured : DEFAULT_MAX_QUERY_LENGTH;
+}
+
 export async function GET() {
   const user = getCurrentUser();
   if (!user) return NextResponse.json({ error: "No autenticado." }, { status: 401 });
@@ -643,6 +656,14 @@ export async function POST(req: NextRequest) {
   const question = body?.question as string | undefined;
   if (!question || question.trim().length === 0) {
     return NextResponse.json({ error: "La pregunta no puede estar vacia." }, { status: 400 });
+  }
+  if (question.length > maxQueryLength()) {
+    // No se toca Supabase ni ningun proveedor de IA: la validacion de
+    // longitud es local y corre antes de cualquier operacion externa.
+    return NextResponse.json(
+      { error: `La pregunta excede el limite de ${maxQueryLength()} caracteres.`, code: "question_too_long" },
+      { status: 400 }
+    );
   }
 
   const language = (body?.language as Language) ?? user.preferredLanguage;

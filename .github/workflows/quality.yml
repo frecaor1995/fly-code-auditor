@@ -1,0 +1,126 @@
+name: Quality
+
+# FASE J: pull_request a main, push a main, y disparo manual. NUNCA corre
+# test:live automaticamente en pull_request (ver job "live-smoke" abajo,
+# gateado a workflow_dispatch + secrets).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Evita que corridas viejas de un mismo PR sigan corriendo/gastando minutos
+# cuando llega un push nuevo.
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Quality (lint, typecheck, tests, coverage, build, e2e)
+    runs-on: ubuntu-latest
+    # Node 20 (LTS actual mas estable/ampliamente soportada): Next.js 14.2
+    # requiere >=18.17; se fija 20 para reproducibilidad, no la version mas
+    # nueva disponible en cada runner.
+    env:
+      NODE_VERSION: "20"
+      # Politica explicita: sin llamadas reales a Gemini/OpenAI/Supabase en
+      # la suite normal de CI. AI_PROVIDER=gemini + GEMINI_API_KEY vacio
+      # ejercita el camino real de fallback (ver playwright.config.ts) sin
+      # tocar la red; USE_MOCK_AI=true cubre el resto de la suite Vitest.
+      USE_MOCK_AI: "true"
+      AI_PROVIDER: "gemini"
+      GEMINI_API_KEY: ""
+      SESSION_SECRET: "ci-test-secret-do-not-use-in-prod"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Quality pipeline (lint si existe -> typecheck -> unit -> integration -> regression -> build)
+        run: npm run quality
+
+      - name: Coverage (umbrales globales y por archivo critico, FASE I)
+        run: npm run test:coverage
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E (Playwright, contra next build + next start)
+        run: npm run test:e2e
+
+      - name: Upload coverage report (solo si algo fallo)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+      - name: Upload Playwright HTML report (solo si algo fallo)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+      - name: Upload screenshots/traces/videos de Playwright (solo si algo fallo)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7
+
+  # Job opcional: SOLO workflow_dispatch, SOLO cuando existan los secrets
+  # requeridos. Nunca corre en pull_request ni push automaticamente.
+  # "environment: live-smoke" permite proteger este job con reviewers
+  # obligatorios / reglas de deployment si el repo configura ese Environment
+  # en GitHub (Settings > Environments); si no existe, GitHub lo ignora sin
+  # fallar el workflow.
+  live-smoke:
+    name: Live smoke (manual, requiere secrets)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    environment: live-smoke
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verificar secrets requeridos
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.LIVE_TEST_BASE_URL }}" ] || [ -z "${{ secrets.LIVE_TEST_EMAIL }}" ] || [ -z "${{ secrets.LIVE_TEST_PASSWORD }}" ]; then
+            echo "Faltan uno o mas secrets (LIVE_TEST_BASE_URL/LIVE_TEST_EMAIL/LIVE_TEST_PASSWORD). Se omite el smoke test live."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Live smoke (1 consulta controlada, ver tests/live/)
+        if: steps.check_secrets.outputs.skip == 'false'
+        run: npm run test:live
+        env:
+          LIVE_TEST_BASE_URL: ${{ secrets.LIVE_TEST_BASE_URL }}
+          LIVE_TEST_EMAIL: ${{ secrets.LIVE_TEST_EMAIL }}
+          LIVE_TEST_PASSWORD: ${{ secrets.LIVE_TEST_PASSWORD }}
+          ALLOW_LIVE_AI_TESTS: "true"

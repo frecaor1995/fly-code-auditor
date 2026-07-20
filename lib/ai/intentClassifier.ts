@@ -95,7 +95,29 @@ const TECHNICAL_TERMS = [
   "receptaculo",
   "receptacle",
   "load calculation",
-  "calculo de carga"
+  "calculo de carga",
+  // Ampliacion (hallazgo de la suite de regresion, FASE F): estos terminos
+  // son 100% tecnicos-electricos pero no estaban reconocidos, causando que
+  // preguntas reales sobre cable MC, licencia TDLR, iluminacion o proyectos
+  // residenciales clasificaran como "general" en el campo informativo
+  // detectedIntent (sin afectar el contenido real de la respuesta, que
+  // depende de findKnowledgeBaseMatch, no de este clasificador). Se
+  // almacenan en minuscula y sin acentos porque se comparan contra texto ya
+  // normalizado con normalizeForMatch (que tambien quita acentos); el
+  // matching es por subcadena, asi que la forma singular ya cubre su
+  // plural regular (ej. "cable" cubre "cables", "licencia" cubre
+  // "licencias"), pero se listan tambien las formas plurales/alternativas
+  // explicitamente por claridad.
+  "cable",
+  "cables",
+  "tdlr",
+  "licencia",
+  "license",
+  "licenses",
+  "iluminacion",
+  "lighting",
+  "residencial",
+  "residential"
 ] as const;
 
 // Frases meta (item 3 del pedido): siempre hacen referencia explicita al

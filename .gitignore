@@ -7,3 +7,9 @@ out
 storage/uploads/*
 !storage/uploads/.gitkeep
 npm-debug.log*
+
+# Testing (Paso 2)
+coverage/
+playwright-report/
+test-results/
+playwright/.auth/

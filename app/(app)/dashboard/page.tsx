@@ -1,11 +1,20 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/session";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { getProjects, getQueries } from "@/lib/db/dbAdapter";
 import { QueryHistoryItem } from "@/components/history/QueryHistoryItem";
 
 export default async function DashboardPage() {
-  const user = getCurrentUser()!;
+  // Hallazgo real (detectado por Playwright E2E, ver tests/e2e/auth.spec.ts
+  // "una ruta protegida sin sesion redirige a /login"): confiar en "!" aqui
+  // asumia que app/(app)/layout.tsx SIEMPRE redirige antes de que esta
+  // pagina se ejecute, pero bajo ciertas condiciones de render/streaming de
+  // RSC el body de la pagina puede empezar a correr igual, y el "!" convertia
+  // un caso legitimo (sin sesion) en un TypeError sin manejar en el server.
+  // Mismo guard explicito que ya usa el layout, como defensa en profundidad.
+  const user = getCurrentUser();
+  if (!user) redirect("/login");
   const allQueries = await getQueries();
   const queries = allQueries.slice(0, 5);
   const pendingReview = allQueries.filter((q) => q.requiresMasterReview);

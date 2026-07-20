@@ -1,9 +1,13 @@
 import { getCurrentUser } from "@/lib/auth/session";
+import { redirect } from "next/navigation";
 import { ROLE_LABELS } from "@/lib/auth/permissions";
 import { SettingsClient } from "@/components/settings/SettingsClient";
 
 export default function ConfiguracionPage() {
-  const user = getCurrentUser()!;
+  // Ver nota en app/(app)/dashboard/page.tsx: guard explicito en vez de "!",
+  // mismo hallazgo real detectado por la suite E2E.
+  const user = getCurrentUser();
+  if (!user) redirect("/login");
 
   return (
     <div className="space-y-4">
