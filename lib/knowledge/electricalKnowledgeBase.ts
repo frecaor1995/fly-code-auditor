@@ -815,10 +815,14 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     keywords: [
       "receptaculos exteriores",
       "receptaculo exterior",
+      "tomacorriente exterior",
+      "tomacorrientes exteriores",
       "outdoor receptacle",
       "outdoor receptacles",
       "lugares humedos",
       "lugares mojados",
+      "ubicacion humeda",
+      "ubicacion mojada",
       "wet location",
       "wet locations",
       "damp location",
@@ -836,10 +840,27 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "exterior",
       "exteriores",
       "intemperie",
+      // "humedo"/"mojado" (masculino) coexisten con "humeda"/"mojada"
+      // (femenino, concuerda con "ubicacion"/"area"): normalizeForMatch NO
+      // hace stemming, es matching por subcadena literal, asi que ambas
+      // formas de genero deben listarse explicitamente. Bug real de
+      // produccion (Houston, pregunta real de un electricista): "ubicacion
+      // humeda o mojada" no matcheaba nada porque solo existia la forma
+      // masculina.
       "humedo",
+      "humeda",
       "mojado",
+      "mojada",
       "gfci exterior",
-      "outdoor gfci"
+      "outdoor gfci",
+      // "WR" como sigla suelta: la pregunta real decia "receptaculo WR", no
+      // el termino completo "weather-resistant".
+      "wr",
+      // "tomacorriente" es el sinonimo mas comun de "receptaculo" en
+      // espanol de Texas/Houston; sin esto, cualquier pregunta que use
+      // "tomacorriente" en vez de "receptaculo" pierde esta senal.
+      "tomacorriente",
+      "tomacorrientes"
     ],
     // Terminos contradictorios propios de esta entrada, ademas del gate
     // simetrico de healthcare que ya aplica CATEGORY_GATES en matchEngine.ts.

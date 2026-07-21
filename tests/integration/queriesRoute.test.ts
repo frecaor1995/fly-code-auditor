@@ -676,3 +676,38 @@ describe("POST /api/queries: fallback local con una categoria legacy (sin match 
     expect(body.answer.length).toBeGreaterThan(0);
   });
 });
+
+describe("POST /api/queries: regresion de produccion - receptaculo exterior humedo/mojado con genero femenino", () => {
+  // Bug real reportado en produccion: esta pregunta exacta (escrita por un
+  // electricista real) caia a "unverified" pese a que kb-exterior-wet-locations
+  // SI responde el tema. Causa real: el keyword list de esa entrada solo
+  // tenia las formas masculinas "humedo"/"mojado" y el termino completo
+  // "weather-resistant"; la pregunta real usa "humeda"/"mojada" (genero
+  // femenino, concuerda con "ubicacion"), "WR" como sigla suelta, y
+  // "tomacorriente" en vez de "receptaculo". normalizeForMatch NO hace
+  // stemming (matching por subcadena literal), asi que las formas de
+  // genero y el sinonimo faltaban por completo del vocabulario.
+  //
+  // Esta prueba NO mockea electricalKnowledgeBase/findKnowledgeBaseMatch:
+  // corre el motor de conocimiento real, exactamente como en produccion,
+  // con Gemini fallando (igual que el reporte original: "proveedor de IA
+  // no disponible").
+  const PRODUCTION_QUESTION =
+    "¿Cuáles son los requisitos para instalar un tomacorriente exterior en una ubicación húmeda o mojada? Incluya GFCI, receptáculo WR y tipo de cubierta.";
+
+  it("con Gemini fallando, cae al motor local y encuentra kb-exterior-wet-locations (NO unverified)", async () => {
+    mockGeminiAskAssistant.mockResolvedValue(geminiFailure("timeout"));
+    const res = await POST(buildJsonRequest("/api/queries", { question: PRODUCTION_QUESTION }));
+    const body = await res.json();
+
+    expect(res.status).toBe(201);
+    expect(body.actualProvider).toBe("local_validated_fallback");
+    expect(body.providerFallback).toBe(true);
+    // El bug real: esto llegaba como "unverified" en produccion.
+    expect(body.answerKind).toBe("validated_fallback");
+    expect(body.unverified).toBe(false);
+    expect(body.query.response.codeReference).toContain("406.9");
+    expect(body.query.response.codeReference).toContain("210.8");
+    expect(body.answer.toLowerCase()).toContain("weather-resistant");
+  });
+});
