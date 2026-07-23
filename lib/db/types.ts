@@ -45,10 +45,21 @@ export interface PlanReadingSummary {
 export interface AssistantResponse {
   shortAnswer: string;
   englishSummary?: string;
+  // Sprint 2 (correccion de wiring): desglose tecnico opcional, separado de
+  // shortAnswer, no concatenado. Ausente (undefined) en toda respuesta que
+  // no lo provea explicitamente (las 21 entradas de electricalKnowledgeBase.ts
+  // anteriores a Sprint 2, el motor OpenAI/Gemini, las categorias legacy,
+  // etc.): el componente no debe renderizar una seccion vacia en esos casos.
+  explanation?: string;
   riskLevel: RiskLevel;
   codeReference: string;
   planReading?: PlanReadingSummary;
   checklist: string[];
+  // Sprint 2: errores comunes de campo, lista separada del checklist (el
+  // checklist son pasos de verificacion; esto son advertencias sobre
+  // practicas incorrectas frecuentes). Opcional, mismo criterio que
+  // explanation arriba.
+  commonMistakes?: string[];
   missingQuestions: string[];
   recommendation: string;
   warning: string;

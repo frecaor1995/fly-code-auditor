@@ -300,7 +300,15 @@ function buildResponseFromKnowledgeEntry(entry: KnowledgeBaseEntry, language: La
   const useEnglish = language === "en";
   const shortAnswer = useEnglish ? entry.shortAnswerEn : entry.shortAnswerEs;
   const englishSummary = language !== "es" ? entry.shortAnswerEn : undefined;
+  // Sprint 2 (correccion de wiring): explanation/commonMistakes viajan como
+  // campos separados de AssistantResponse (ver lib/db/types.ts), nunca
+  // concatenados a shortAnswer ni al checklist. entry.explanationEs/En y
+  // entry.commonMistakesEs/En son opcionales (solo las 6 entradas nuevas de
+  // Sprint 2 los usan); para las 21 entradas anteriores ambos quedan
+  // undefined y AssistantResponseCard no renderiza esas secciones.
+  const explanation = useEnglish ? entry.explanationEn : entry.explanationEs;
   const checklist = useEnglish ? entry.checklistEn : entry.checklistEs;
+  const commonMistakes = useEnglish ? entry.commonMistakesEn : entry.commonMistakesEs;
   const missingQuestions = useEnglish ? entry.missingQuestionsEn : entry.missingQuestionsEs;
   const recommendation = useEnglish ? entry.recommendationEn : entry.recommendationEs;
   const warning = useEnglish ? entry.warningEn : entry.warningEs;
@@ -309,9 +317,11 @@ function buildResponseFromKnowledgeEntry(entry: KnowledgeBaseEntry, language: La
   return base(language, {
     shortAnswer,
     englishSummary,
+    explanation,
     riskLevel: entry.riskLevel,
     codeReference: `${entry.codeReference}. ${verifyNecMessage(language)}`,
     checklist,
+    commonMistakes,
     missingQuestions,
     recommendation,
     warning,

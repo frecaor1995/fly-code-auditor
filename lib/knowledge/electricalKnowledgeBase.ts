@@ -41,9 +41,23 @@ export interface KnowledgeBaseEntry {
   sourceType: KnowledgeSourceType;
   shortAnswerEs: string;
   shortAnswerEn: string;
+  // Sprint 2: desglose tecnico opcional, mas largo que shortAnswer, para
+  // entradas donde conviene separar la respuesta directa de la explicacion
+  // completa. Opcional y retrocompatible: las 21 entradas anteriores a
+  // Sprint 2 no lo usan (siguen con todo el detalle dentro de shortAnswer,
+  // como ya lo hacian) y se comportan exactamente igual. Cuando esta
+  // presente, mockAssistant.ts lo anexa a shortAnswer/englishSummary.
+  explanationEs?: string;
+  explanationEn?: string;
   riskLevel: RiskLevel;
   checklistEs: string[];
   checklistEn: string[];
+  // Sprint 2: errores comunes de campo, distintos de un checklist de
+  // verificacion (son advertencias sobre practicas incorrectas frecuentes,
+  // no pasos a confirmar). Opcional; cuando esta presente, mockAssistant.ts
+  // los anexa al checklist visible con el prefijo "Error comun".
+  commonMistakesEs?: string[];
+  commonMistakesEn?: string[];
   missingQuestionsEs: string[];
   missingQuestionsEn: string[];
   recommendationEs: string;
@@ -214,7 +228,12 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "wall switch",
       "room entrance",
       "general lighting",
-      "load per square foot"
+      "load per square foot",
+      // Sprint 2 (Parte 2, fallo demostrado): "room entrance" no matcheaba
+      // "entrance of a room" (mismo concepto, orden de palabras invertido -
+      // el matching es por subcadena literal, sin tolerancia de orden).
+      "entrance of a room",
+      "entrance of the room"
     ],
     codeReference: "NEC Article 210 (branch circuits) y Article 410 (luminaires); referencia general",
     sourceType: "regla_tecnica_general",
@@ -345,7 +364,13 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "outlet",
       "test button",
       "boton de prueba",
-      "boton de test"
+      "boton de test",
+      // Sprint 2: la entrada nueva kb-bathroom-receptacles (Parte 1) tambien
+      // matchea "receptaculo del bano", y una pregunta centrada en GFCI que
+      // ademas menciona el receptaculo del bano (regresion real detectada:
+      // "necesito proteccion gfci en el receptaculo del bano cerca del
+      // fregadero") debe seguir resolviendo a GFCI, no a la entrada nueva.
+      "receptaculo del bano"
     ],
     codeReference: "NEC Article 210.8 (GFCI protection for personnel)",
     sourceType: "regla_tecnica_general",
@@ -393,7 +418,11 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "combinado",
       "estandar",
       "standard",
-      "combined afci"
+      "combined afci",
+      // Sprint 2 (Parte 2, fallo demostrado): "en que circuitos se requiere
+      // AFCI en una vivienda" solo puntuaba 1 (bare "afci"). "vivienda" es
+      // combinable de bajo peso, igual que "dormitorio"/"bedroom" arriba.
+      "vivienda"
     ],
     codeReference: "NEC Article 210.12 (Arc-Fault Circuit-Interrupter Protection)",
     sourceType: "regla_tecnica_general",
@@ -456,7 +485,19 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     id: "kb-bonding",
     matchCategory: "grounding_bonding",
     category: "Bonding",
-    keywords: ["bonding", "union equipotencial", "bonding jumper", "puente de bonding"],
+    keywords: [
+      "bonding",
+      "union equipotencial",
+      "bonding jumper",
+      "puente de bonding",
+      // Sprint 2 (Parte 2, fallo demostrado): la pregunta comparativa
+      // "diferencia entre grounding y bonding" empataba 1/1 con kb-grounding
+      // y ninguna cruzaba el umbral. El contenido de ESTA entrada ya explica
+      // la diferencia explicitamente, asi que la frase comparativa completa
+      // se agrega aqui (no en kb-grounding) para desempatar sin ambiguedad.
+      "diferencia entre grounding y bonding",
+      "difference between grounding and bonding"
+    ],
     codeReference: "NEC Article 250, Part V (Bonding)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
@@ -550,7 +591,14 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "separar neutro y tierra",
       "neutral and ground bonded",
       "neutral-ground separation",
-      "subpanel bonding"
+      "subpanel bonding",
+      // Sprint 2 (Parte 2, fallo demostrado): las frases de Sprint 1 exigian
+      // coincidencia exacta y la pregunta real intercala palabras
+      // ("el neutro Y LA tierra... SE CONECTAN juntos" / "neutral and
+      // ground BE bonded together"). Se agregan anclas mas cortas y
+      // robustas a esa insercion de palabras.
+      "neutro y la tierra",
+      "neutral and ground"
     ],
     codeReference:
       "NEC Article 215 (Feeders), 310.12 (tabla reducida para vivienda - solo si el alimentador abastece la carga COMPLETA de la vivienda), Table 310.16 (ampacidad estandar), 110.14(A)/(B) (terminales y compuesto antioxidante condicional), NEC Chapter 9 Tables 1/4/5 (conduit fill), Article 352.10(F) (PVC Schedule 80 en ubicaciones expuestas a daño fisico), Informational Note de caida de voltaje en 210.19(A)/215.2(A), 250.24(A)(5)/408.40-408.41 (neutro y bonding), 300.5/300.9 (ubicaciones humedas)",
@@ -650,7 +698,17 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     id: "kb-load-calculation",
     matchCategory: "services",
     category: "Load Calculation",
-    keywords: ["load calculation", "calculo de carga", "cargas calculadas", "demand factor", "factor de demanda"],
+    keywords: [
+      "load calculation",
+      "calculo de carga",
+      "cargas calculadas",
+      "demand factor",
+      "factor de demanda",
+      // Sprint 2 (Parte 2, fallo demostrado): "carga total de una vivienda"
+      // es una parafrasis natural de "calculo de carga" que no coincidia
+      // con ninguna keyword exacta existente.
+      "carga total"
+    ],
     codeReference: "NEC Article 220 (Branch-Circuit, Feeder, and Service Load Calculations)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
@@ -786,7 +844,12 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       // "que licencia se requiere para supervisar trabajo electrico") no
       // coincidia. "supervise" es el verbo en ingles, tampoco presente antes.
       "supervisar",
-      "supervise"
+      "supervise",
+      // Sprint 2 (Parte 2, fallo demostrado): "supervisar" solo (1pt) no
+      // cruzaba el umbral porque la pregunta real no dice "tdlr" ni
+      // "licencia texas" de forma contigua. Se agrega la frase completa
+      // "supervisar trabajo electrico" como ancla de mayor peso.
+      "supervisar trabajo electrico"
     ],
     codeReference: "Reglas de licenciamiento TDLR (Texas Department of Licensing and Regulation)",
     sourceType: "guia_interna_general",
@@ -940,7 +1003,13 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "patio",
       "porch",
       "terraza",
-      "exterior outlet"
+      "exterior outlet",
+      // Sprint 2 (Parte 2, fallo demostrado): "patio" solo (1pt) no cruzaba
+      // el umbral por si solo. "receptaculo en el patio" es la frase
+      // contigua real de la pregunta que fallaba; "patio receptacle" cubre
+      // el equivalente en ingles pedido explicitamente.
+      "receptaculo en el patio",
+      "patio receptacle"
     ],
     // Terminos contradictorios propios de esta entrada, ademas del gate
     // simetrico de healthcare que ya aplica CATEGORY_GATES en matchEngine.ts.
@@ -1045,6 +1114,446 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "Guia general interna basada en NEC Article 330; verificar el articulo oficial y el listado especifico del producto antes de instalar, especialmente en ubicaciones humedas, corrosivas o enterradas.",
     warningEn:
       "General internal guide based on NEC Article 330; verify the official article and the product's specific listing before installing, especially in wet, corrosive, or underground locations."
+  },
+
+  // ===========================================================================
+  // Sprint 2 - PARTE 1: 6 entradas nuevas (receptaculos generales, cocinas,
+  // banos, panel working space, servicio residencial, HVAC). Todas usan
+  // referencias NEC de alta confianza/muy conocidas (mismo nivel de certeza
+  // que el resto de este archivo); cualquier numero/regla que depende de la
+  // placa del equipo, de la edicion adoptada por el AHJ, o que varia entre
+  // ediciones del NEC (ej. reglas de isla/peninsula en cocina, distancia
+  // exacta a tina/ducha en bano, el porcentaje exacto de la formula MOCP) se
+  // deja explicitamente marcado como "pendiente de verificacion puntual" en
+  // vez de asumirse, en vez de inventarse un valor.
+  // ===========================================================================
+
+  {
+    id: "kb-receptacle-spacing-tr",
+    matchCategory: "receptacles",
+    category: "Receptaculos generales: espaciamiento y tamper-resistant (NEC 210.52(A) / 406.12)",
+    keywords: [
+      "espaciamiento de receptaculos",
+      "receptaculos por pared",
+      "regla de 6 pies",
+      "regla de 12 pies",
+      "cuantos receptaculos",
+      "distancia entre receptaculos",
+      "receptaculo tamper resistant",
+      "receptaculo tamper-resistant",
+      "tamper-resistant",
+      "tamper resistant",
+      "a prueba de manipulacion",
+      "receptaculo tr",
+      "receptacle spacing",
+      "spacing between receptacles",
+      "maximum spacing between receptacles",
+      "6 foot rule",
+      "12 foot rule",
+      "how many receptacles",
+      "tamper-resistant receptacle",
+      "tamper-resistant receptacles",
+      "tr receptacle",
+      "dwelling unit receptacles"
+    ],
+    codeReference: "NEC 210.52(A) (receptaculos en areas habitables de vivienda) y NEC 406.12 (receptaculos tamper-resistant en vivienda)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "En las areas habitables de una vivienda (salas, dormitorios, comedores, pasillos, etc.), NEC 210.52(A) exige colocar receptaculos de pared de modo que ningun punto a lo largo de la linea de pared quede a mas de 6 pies de un receptaculo, y que todo espacio de pared de 2 pies o mas de ancho tenga al menos uno; en la practica esto se conoce como la regla de los 6/12 pies (dos receptaculos consecutivos nunca separados por mas de 12 pies). Ademas, NEC 406.12 exige que los receptaculos de 15A y 20A, 125V en vivienda sean del tipo tamper-resistant (TR, con obturadores internos que bloquean el ingreso de objetos en un solo contacto), independientemente de la ubicacion dentro de la vivienda.",
+    explanationEs:
+      "La medida se toma a lo largo del piso, siguiendo el contorno de la pared (no en linea recta cruzando la habitacion), y aplica a las areas habitables listadas en 210.52(A); no aplica igual a cocina/countertop (210.52(C)) ni a bano (210.52(D)), que tienen su propia regla. Espacios de pared separados por una puerta, chimenea u otro elemento fijo de mas de 2 pies se consideran espacios de pared distintos, cada uno con su propio requisito. Los receptaculos tamper-resistant son obligatorios en las ubicaciones de vivienda cubiertas por el articulo, con excepciones puntuales (ej. cierto equipo fijo en espacio dedicado) que no se detallan aqui y deben verificarse contra el texto oficial.",
+    shortAnswerEn:
+      "In a dwelling's habitable areas (living rooms, bedrooms, dining rooms, hallways, etc.), NEC 210.52(A) requires wall receptacles to be placed so no point along the wall's floor line is more than 6 feet from a receptacle, and every wall space 2 feet or wider has at least one; in practice this is known as the 6/12-foot rule (no two consecutive receptacles more than 12 feet apart). In addition, NEC 406.12 requires 15A and 20A, 125V receptacles in dwellings to be tamper-resistant (TR, with internal shutters that block objects from entering a single contact), regardless of location within the dwelling.",
+    explanationEn:
+      "The measurement is taken along the floor, following the wall's contour (not in a straight line across the room), and applies to the habitable areas listed in 210.52(A); it does not apply the same way to kitchen/countertop (210.52(C)) or bathroom (210.52(D)), which have their own rule. Wall spaces separated by a doorway, fireplace, or other fixed element more than 2 feet wide are treated as separate wall spaces, each with its own requirement. Tamper-resistant receptacles are required in the dwelling locations covered by the article, with specific exceptions (e.g., certain fixed equipment in dedicated space) not detailed here that must be verified against the official text.",
+    riskLevel: "bajo",
+    checklistEs: [
+      "Medir la distancia a lo largo de la linea de pared, no en diagonal",
+      "Confirmar que ningun punto de pared quede a mas de 6 pies de un receptaculo",
+      "Confirmar que espacios de pared de 2 pies o mas tengan al menos un receptaculo",
+      "Verificar que los receptaculos de 15A/20A 125V sean listados tamper-resistant"
+    ],
+    checklistEn: [
+      "Measure distance along the wall's floor line, not diagonally",
+      "Confirm no point along the wall is more than 6 feet from a receptacle",
+      "Confirm wall spaces 2 feet or wider have at least one receptacle",
+      "Verify 15A/20A 125V receptacles are listed tamper-resistant"
+    ],
+    commonMistakesEs: [
+      "Medir la distancia en linea recta cruzando la habitacion en vez de a lo largo del contorno de la pared",
+      "Omitir receptaculos en espacios de pared de 2 pies o mas solo porque parecen pequenos",
+      "Instalar receptaculos estandar (no tamper-resistant) asumiendo que TR solo aplica donde hay ninos"
+    ],
+    commonMistakesEn: [
+      "Measuring distance in a straight line across the room instead of along the wall's floor line",
+      "Skipping receptacles in wall spaces 2 feet or wider because they look small",
+      "Installing standard (non tamper-resistant) receptacles assuming TR only applies where children live"
+    ],
+    missingQuestionsEs: ["Uso especifico de la habitacion (living area vs cocina/bano, que tienen reglas propias)", "Edicion del NEC adoptada por el AHJ"],
+    missingQuestionsEn: ["Specific room use (living area vs kitchen/bathroom, which have their own rules)", "NEC edition adopted by the AHJ"],
+    recommendationEs:
+      "Verificar el espaciamiento medido a lo largo de la pared y confirmar que todos los receptaculos de vivienda sean tamper-resistant antes de cerrar la instalacion; para cocina y bano usar las reglas especificas de esas areas, no esta regla general.",
+    recommendationEn:
+      "Verify spacing measured along the wall and confirm all dwelling receptacles are tamper-resistant before closing out the installation; for kitchens and bathrooms use their own specific rules, not this general one.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 210.52(A) y 406.12; existen excepciones puntuales no cubiertas aqui (pendientes de verificacion puntual). Verificar el texto oficial, la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
+    warningEn:
+      "Preliminary internal guide based on NEC 210.52(A) and 406.12; specific exceptions exist that are not covered here (pending specific verification). Verify the official text, the edition adopted by the AHJ, and Master Electrician approval before installing."
+  },
+  {
+    id: "kb-kitchen-receptacles",
+    matchCategory: "receptacles",
+    category: "Cocinas: circuitos de pequenos electrodomesticos y receptaculos de countertop (NEC 210.11(C)(1) / 210.52(C))",
+    keywords: [
+      "circuitos de countertop",
+      "circuito de countertop",
+      "pequenos electrodomesticos",
+      "electrodomesticos pequenos",
+      "circuito dedicado cocina",
+      "receptaculos de cocina",
+      "espaciamiento countertop",
+      "distancia countertop",
+      "cuantos circuitos cocina",
+      "sobre el countertop",
+      "countertop",
+      "cocina residencial",
+      "countertop circuits",
+      "small appliance circuit",
+      "small appliance circuits",
+      "kitchen receptacles",
+      "countertop receptacle spacing",
+      "dedicated kitchen circuit",
+      "countertop spacing"
+    ],
+    codeReference: "NEC 210.11(C)(1) (circuitos de pequenos electrodomesticos) y NEC 210.52(C) (receptaculos de countertop en cocina)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "Una cocina residencial requiere al menos dos circuitos ramales de 20A dedicados a pequenos electrodomesticos (small-appliance branch circuits) que alimenten los receptaculos de countertop y del area de comedor/desayunador asociada, segun NEC 210.11(C)(1); estos circuitos no deben alimentar iluminacion fija ni otros receptaculos fuera de esas areas. Para el espaciamiento, NEC 210.52(C) exige que ningun punto a lo largo de la linea de countertop quede a mas de 24 pulgadas de un receptaculo, y que todo espacio de countertop de 12 pulgadas o mas de ancho tenga uno (en la practica, un maximo de 4 pies entre receptaculos).",
+    explanationEs:
+      "Los dos circuitos de 20A son un minimo: cocinas grandes o con mucho countertop pueden requerir mas para cumplir el espaciamiento. Islas y peninsulas de cocina tienen reglas de receptaculos que han cambiado entre ediciones del NEC (la cantidad y el metodo de montaje permitido varian): esto queda pendiente de verificacion puntual contra la edicion exacta adoptada por el AHJ, no se asume aqui un requisito especifico de isla/peninsula. Los receptaculos de countertop en cocina tambien requieren proteccion GFCI (ver la entrada de GFCI) y, en vivienda, deben ser tamper-resistant (NEC 406.12).",
+    riskLevel: "medio",
+    checklistEs: [
+      "Confirmar al menos 2 circuitos de 20A dedicados a pequenos electrodomesticos",
+      "Verificar que esos circuitos no alimenten luminarias fijas ni otros receptaculos",
+      "Medir espaciamiento de countertop: maximo 24 pulgadas a cualquier punto, receptaculo en espacios de 12+ pulgadas",
+      "Confirmar GFCI y tamper-resistant en los receptaculos de countertop",
+      "Verificar reglas de isla/peninsula contra la edicion exacta adoptada por el AHJ (pendiente de revision puntual)"
+    ],
+    checklistEn: [
+      "Confirm at least 2 dedicated 20A small-appliance circuits",
+      "Verify those circuits do not feed fixed lighting or other receptacles",
+      "Measure countertop spacing: max 24 inches to any point, receptacle for spaces 12+ inches wide",
+      "Confirm GFCI and tamper-resistant protection on countertop receptacles",
+      "Verify island/peninsula rules against the exact edition adopted by the AHJ (pending specific verification)"
+    ],
+    commonMistakesEs: [
+      "Alimentar luminarias fijas o el refrigerador desde el mismo circuito de pequenos electrodomesticos",
+      "Asumir que un solo circuito de 20A basta sin verificar el espaciamiento de 24 pulgadas",
+      "Omitir GFCI o tamper-resistant en los receptaculos de countertop"
+    ],
+    commonMistakesEn: [
+      "Feeding fixed lighting or the refrigerator from the same small-appliance circuit",
+      "Assuming a single 20A circuit covers the kitchen without checking the 24-inch spacing rule",
+      "Omitting GFCI or tamper-resistant protection on countertop receptacles"
+    ],
+    shortAnswerEn:
+      "A residential kitchen requires at least two dedicated 20A small-appliance branch circuits feeding the countertop receptacles and the associated dining/breakfast area receptacles, per NEC 210.11(C)(1); these circuits must not feed fixed lighting or other receptacles outside those areas. For spacing, NEC 210.52(C) requires that no point along the countertop line be more than 24 inches from a receptacle, and that any countertop space 12 inches or wider have one (in practice, a maximum of 4 feet between receptacles).",
+    explanationEn:
+      "The two 20A circuits are a minimum: larger kitchens or kitchens with more countertop may need additional circuits to meet the spacing rule. Island and peninsula receptacle rules have changed across NEC editions (the required count and permitted mounting method vary): this is left pending specific verification against the exact edition adopted by the AHJ, and no specific island/peninsula requirement is assumed here. Countertop receptacles in a kitchen also require GFCI protection (see the GFCI entry) and, in a dwelling, must be tamper-resistant (NEC 406.12).",
+    missingQuestionsEs: ["Tamano y layout exacto del countertop (incluye isla o peninsula)", "Edicion del NEC adoptada por el AHJ"],
+    missingQuestionsEn: ["Exact countertop size and layout (includes island or peninsula)", "NEC edition adopted by the AHJ"],
+    recommendationEs: "Confirmar el layout exacto del countertop (incluyendo islas/peninsulas) contra la edicion adoptada por el AHJ antes de fijar cantidad final de receptaculos y circuitos.",
+    recommendationEn: "Confirm the exact countertop layout (including islands/peninsulas) against the edition adopted by the AHJ before finalizing the receptacle and circuit count.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 210.11(C)(1) y 210.52(C); las reglas de isla/peninsula varian por edicion y quedan pendientes de verificacion puntual. Verificar el texto oficial, la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
+    warningEn:
+      "Preliminary internal guide based on NEC 210.11(C)(1) and 210.52(C); island/peninsula rules vary by edition and are left pending specific verification. Verify the official text, the edition adopted by the AHJ, and Master Electrician approval before installing."
+  },
+  {
+    id: "kb-bathroom-receptacles",
+    matchCategory: "receptacles",
+    category: "Banos: circuito de 20A, receptaculos y GFCI (NEC 210.11(C)(3) / 210.8(A)(1) / 210.52(D))",
+    keywords: [
+      "circuito dedicado de 20a",
+      "circuito de 20a para bano",
+      "receptaculo del bano",
+      "receptaculo de bano",
+      "bano",
+      "lavamanos",
+      "cerca del lavamanos",
+      "cerca de la tina",
+      "cerca de la ducha",
+      "tomacorriente",
+      "dedicated 20a circuit",
+      "20a circuit for bathroom",
+      "bathroom receptacle",
+      "bathroom outlet",
+      "bathroom",
+      "near the sink",
+      "near the tub",
+      "near the shower",
+      "basin"
+    ],
+    codeReference: "NEC 210.11(C)(3) (circuito dedicado de 20A para bano), NEC 210.8(A)(1) (GFCI en banos) y NEC 210.52(D) (receptaculo cerca del lavamanos)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "Cada bano de una vivienda requiere al menos un receptaculo, ubicado a no mas de 3 pies del borde exterior de cada lavamanos, segun NEC 210.52(D). Ese receptaculo debe tener proteccion GFCI (NEC 210.8(A)(1)). NEC 210.11(C)(3) exige al menos un circuito ramal de 20A dedicado a los receptaculos de bano: ese circuito puede alimentar unicamente receptaculos de bano (de uno o mas banos), o, si el circuito de 20A sirve a un solo bano, puede tambien alimentar otro equipo de ese mismo bano (luminarias, extractor); esta segunda opcion tiene condiciones especificas que deben verificarse contra el texto oficial antes de asumirla.",
+    explanationEs:
+      "El receptaculo no puede ubicarse dentro de la tina o ducha, y debe mantenerse fuera de las zonas de contacto directo con el agua; las distancias exactas de separacion respecto a la tina/ducha dependen de la edicion adoptada por el AHJ y quedan pendientes de verificacion puntual, no se asume aqui una distancia especifica. En vivienda, el receptaculo del bano tambien debe ser tamper-resistant (NEC 406.12). 'Tomacorriente' es el sinonimo mas comun de 'receptaculo' usado en espanol de Texas/Houston para este mismo dispositivo.",
+    riskLevel: "medio",
+    checklistEs: [
+      "Confirmar al menos un receptaculo a no mas de 3 pies del lavamanos",
+      "Verificar proteccion GFCI en el receptaculo del bano",
+      "Confirmar circuito dedicado de 20A y si alimenta solo receptaculos o tambien otro equipo del mismo bano",
+      "Verificar distancia a tina/ducha contra el texto oficial y el AHJ (pendiente de revision puntual)",
+      "Confirmar que el receptaculo sea tamper-resistant"
+    ],
+    checklistEn: [
+      "Confirm at least one receptacle within 3 feet of the basin",
+      "Verify GFCI protection on the bathroom receptacle",
+      "Confirm a dedicated 20A circuit and whether it feeds only receptacles or also other equipment in the same bathroom",
+      "Verify tub/shower clearance against the official text and the AHJ (pending specific verification)",
+      "Confirm the receptacle is tamper-resistant"
+    ],
+    commonMistakesEs: [
+      "Instalar el receptaculo del bano en el mismo circuito que otros banos o areas sin dedicarlo correctamente",
+      "Omitir GFCI en el receptaculo del bano",
+      "Ubicar el receptaculo dentro o demasiado cerca de la tina/ducha sin verificar la distancia exacta exigida por el AHJ"
+    ],
+    commonMistakesEn: [
+      "Wiring the bathroom receptacle on the same circuit as other bathrooms or areas without properly dedicating it",
+      "Omitting GFCI protection on the bathroom receptacle",
+      "Locating the receptacle inside or too close to the tub/shower without verifying the exact AHJ-required clearance"
+    ],
+    shortAnswerEn:
+      "Every bathroom in a dwelling requires at least one receptacle, located within 3 feet of the outside edge of each basin, per NEC 210.52(D). That receptacle must have GFCI protection (NEC 210.8(A)(1)). NEC 210.11(C)(3) requires at least one dedicated 20A branch circuit for bathroom receptacles: that circuit can supply only bathroom receptacles (in one or more bathrooms), or, if the 20A circuit serves a single bathroom, it may also supply other equipment in that same bathroom (lighting, exhaust fan); this second option has specific conditions that must be verified against the official text before assuming it applies.",
+    explanationEn:
+      "The receptacle cannot be located inside the tub or shower space, and must stay clear of direct water-contact zones; the exact separation distances from the tub/shower depend on the edition adopted by the AHJ and are left pending specific verification here, no specific distance is assumed. In a dwelling, the bathroom receptacle must also be tamper-resistant (NEC 406.12). 'Tomacorriente' is the most common Spanish synonym for 'receptaculo' used in Texas/Houston Spanish for this same device.",
+    missingQuestionsEs: ["Layout exacto del bano (ubicacion de lavamanos, tina, ducha)", "Si el circuito de 20A sirve un solo bano o varios", "Edicion del NEC adoptada por el AHJ"],
+    missingQuestionsEn: ["Exact bathroom layout (sink, tub, shower locations)", "Whether the 20A circuit serves one bathroom or several", "NEC edition adopted by the AHJ"],
+    recommendationEs: "Confirmar el layout exacto del bano y la edicion adoptada por el AHJ antes de fijar la ubicacion final del receptaculo y el alcance del circuito dedicado.",
+    recommendationEn: "Confirm the exact bathroom layout and the edition adopted by the AHJ before finalizing the receptacle location and the dedicated circuit's scope.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 210.11(C)(3), 210.8(A)(1) y 210.52(D); la distancia exacta respecto a tina/ducha varia por edicion y queda pendiente de verificacion puntual. Verificar el texto oficial, la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
+    warningEn:
+      "Preliminary internal guide based on NEC 210.11(C)(3), 210.8(A)(1), and 210.52(D); the exact tub/shower clearance varies by edition and is left pending specific verification. Verify the official text, the edition adopted by the AHJ, and Master Electrician approval before installing."
+  },
+  {
+    id: "kb-panel-working-space",
+    matchCategory: "panels",
+    category: "Espacio de trabajo frente a paneles electricos (NEC 110.26)",
+    keywords: [
+      "espacio de trabajo",
+      "espacio de trabajo frente al panel",
+      "clearance del panel",
+      "ancho de trabajo",
+      "profundidad de trabajo",
+      "altura de trabajo",
+      "obstrucciones frente al panel",
+      "acceso al panel",
+      "110.26",
+      "espacio dedicado sobre el panel",
+      "working space",
+      "working space in front of the panel",
+      "clearance in front of the panel",
+      "clearance is required in front of",
+      "in front of an electrical panel",
+      "panel clearance",
+      "width of working space",
+      "depth of working space",
+      "height of working space",
+      "obstructions in front of panel",
+      "panel access",
+      "dedicated space above the panel"
+    ],
+    codeReference: "NEC 110.26(A) (espacio de trabajo: profundidad, ancho y altura) y NEC 110.26(B) (espacio dedicado a equipo)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "NEC 110.26 exige un espacio de trabajo despejado frente a paneles y equipo electrico para permitir operacion y mantenimiento seguros. Para el caso residencial/comercial tipico (0-150V a tierra, condicion 1 o 2), la profundidad minima de referencia es 3 pies (36 pulgadas); el ancho minimo es 30 pulgadas o el ancho del equipo, lo que sea mayor; y la altura minima es 6.5 pies (78 pulgadas) o la altura del equipo. La profundidad exacta varia segun el voltaje a tierra y la condicion (1, 2 o 3) de la Table 110.26(A)(1): este valor de 3 pies es el mas comun para equipo residencial de baja tension, no un numero universal para todos los casos.",
+    explanationEs:
+      "El espacio de trabajo no puede usarse como area de almacenamiento, y debe estar libre de obstrucciones fijas (tuberia, ductos, otro equipo) dentro de esa zona. Ademas, NEC 110.26(B) exige un espacio dedicado sobre el panel (tipicamente hasta el techo estructural o 6 pies de altura, lo que sea menor) libre de tuberia de agua/gas o ductos de HVAC ajenos, salvo protecciones especificas permitidas por el codigo. Requisitos adicionales de acceso/salidas aplican a equipo de mayor capacidad (tipicamente sobre 1200A), que no es el caso residencial tipico y queda fuera del alcance de esta guia.",
+    riskLevel: "alto",
+    checklistEs: [
+      "Confirmar profundidad de trabajo segun voltaje a tierra y condicion (1/2/3) de la tabla oficial",
+      "Confirmar ancho minimo (30 pulgadas o ancho del equipo)",
+      "Confirmar altura minima (6.5 pies o altura del equipo)",
+      "Verificar que el espacio de trabajo este libre de almacenamiento y obstrucciones",
+      "Verificar el espacio dedicado sobre el panel libre de tuberia/ductos ajenos"
+    ],
+    checklistEn: [
+      "Confirm working depth per the official table's voltage-to-ground and condition (1/2/3)",
+      "Confirm minimum width (30 inches or equipment width)",
+      "Confirm minimum height (6.5 feet or equipment height)",
+      "Verify the working space is free of storage and obstructions",
+      "Verify the dedicated space above the panel is free of foreign piping/ductwork"
+    ],
+    commonMistakesEs: [
+      "Usar el espacio frente al panel para almacenar cajas, herramientas o material",
+      "Instalar estantes, tuberia o ductos dentro del espacio de trabajo o del espacio dedicado sobre el panel",
+      "Asumir que 3 pies de profundidad aplica a todos los voltajes sin verificar la tabla segun condicion 1/2/3"
+    ],
+    commonMistakesEn: [
+      "Using the space in front of the panel to store boxes, tools, or material",
+      "Installing shelving, piping, or ductwork inside the working space or the dedicated space above the panel",
+      "Assuming 3 feet of depth applies to all voltages without checking the table for condition 1/2/3"
+    ],
+    shortAnswerEn:
+      "NEC 110.26 requires a clear working space in front of panels and electrical equipment to allow safe operation and maintenance. For the typical residential/commercial case (0-150V to ground, condition 1 or 2), the reference minimum depth is 3 feet (36 inches); the minimum width is 30 inches or the width of the equipment, whichever is greater; and the minimum height is 6.5 feet (78 inches) or the height of the equipment. The exact depth varies by voltage to ground and condition (1, 2, or 3) per Table 110.26(A)(1): this 3-foot figure is the most common for typical low-voltage residential equipment, not a universal number for every case.",
+    explanationEn:
+      "The working space cannot be used as storage area, and must be free of fixed obstructions (piping, ductwork, other equipment) within that zone. In addition, NEC 110.26(B) requires a dedicated space above the panel (typically up to the structural ceiling or 6 feet high, whichever is less) free of foreign water/gas piping or HVAC ductwork, except for specific protections the code permits. Additional access/exit requirements apply to larger equipment (typically above 1200A), which is not the typical residential case and is outside the scope of this guide.",
+    missingQuestionsEs: ["Voltaje a tierra y condicion (1, 2 o 3) del equipo", "Amperaje del equipo (para requisitos de acceso en equipo grande)"],
+    missingQuestionsEn: ["Voltage to ground and condition (1, 2, or 3) of the equipment", "Equipment amperage (for access requirements on larger equipment)"],
+    recommendationEs: "Confirmar la profundidad exacta contra la Table 110.26(A)(1) segun voltaje/condicion antes de aprobar el espacio; escalar al Master Electrician si hay obstrucciones existentes.",
+    recommendationEn: "Confirm the exact depth against Table 110.26(A)(1) based on voltage/condition before approving the space; escalate to the Master Electrician if existing obstructions are present.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 110.26; los valores de 3 pies/30 pulgadas/6.5 pies son la referencia mas comun para equipo residencial de baja tension, no un valor universal. Verificar la tabla oficial, la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de aprobar el espacio.",
+    warningEn:
+      "Preliminary internal guide based on NEC 110.26; the 3-foot/30-inch/6.5-foot figures are the most common reference for low-voltage residential equipment, not a universal value. Verify the official table, the edition adopted by the AHJ, and Master Electrician approval before approving the space."
+  },
+  {
+    id: "kb-residential-service",
+    matchCategory: "services",
+    category: "Servicio residencial: tamano minimo y desconectadores (NEC 230.79(C) / 230.71)",
+    keywords: [
+      "amperaje minimo de servicio",
+      "tamano minimo de servicio",
+      "servicio residencial",
+      "disconnect de servicio principal",
+      "desconectador principal",
+      "desconectadores de servicio",
+      "cuantos disconnects",
+      "vivienda unifamiliar",
+      "100 amperios",
+      "200 amperios",
+      "minimum service size",
+      "minimum service amperage",
+      "residential service",
+      "main service disconnect",
+      "service disconnect",
+      "how many service disconnects",
+      "one-family dwelling",
+      "100 amp service",
+      "200 amp service"
+    ],
+    // Referencia ya verificada en este proyecto: coincide exactamente con la
+    // entrada semilla real de public.knowledge_entries (ver
+    // supabase/knowledge_entries_upgrade.sql, categoria
+    // "residential_service_panel"), replicada aqui como entrada local para
+    // que la respuesta este disponible aunque Supabase no este configurado.
+    codeReference: "NEC 230.79(C) (tamano minimo de servicio para vivienda unifamiliar), NEC 230.71 (numero maximo de desconectadores de servicio) y NEC Article 220 (calculo de carga final)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "Para una vivienda unifamiliar, el minimo tipico de servicio o desconectador principal es 100 amperios, 3 hilos, conforme a NEC 230.79(C) (esta es la misma referencia ya verificada en la base de conocimiento de este proyecto). El tamano final del servicio no se define solo por esa regla fija: debe confirmarse mediante calculo de carga conforme a NEC Article 220, los requisitos de la compania electrica, las condiciones existentes del inmueble y la aprobacion del AHJ local. Ademas, NEC 230.71(A) permite hasta 6 desconectadores de servicio agrupados en una ubicacion (en vez de un unico desconectador principal), cada uno marcado permanentemente para indicar su uso.",
+    explanationEs:
+      "En viviendas modernas, remodelaciones grandes, EV chargers, HVAC electrico o cargas nuevas importantes, 200A puede ser recomendable o requerido segun el caso; esto se determina con el calculo de carga, no con una regla generica. 'Desconectador de servicio' (service disconnect) es el medio para cortar toda la energia entrante al inmueble; puede ser un unico interruptor principal o, como permite 230.71(A), hasta 6 interruptores o fusibles agrupados que en conjunto cumplen esa funcion. Cada desconectador debe estar marcado para identificar la carga que controla.",
+    riskLevel: "medio",
+    checklistEs: [
+      "Confirmar calculo de carga actualizado segun NEC Article 220",
+      "Verificar requisitos de la compania electrica",
+      "Confirmar cantidad de desconectadores de servicio (maximo 6 agrupados, NEC 230.71(A))",
+      "Verificar marcado permanente de cada desconectador",
+      "Confirmar aprobacion del AHJ local"
+    ],
+    checklistEn: [
+      "Confirm an updated load calculation per NEC Article 220",
+      "Verify utility requirements",
+      "Confirm the number of service disconnects (maximum 6 grouped, NEC 230.71(A))",
+      "Verify permanent marking on each disconnect",
+      "Confirm local AHJ approval"
+    ],
+    commonMistakesEs: [
+      "Asumir que 100A siempre es suficiente sin hacer el calculo de carga segun Article 220",
+      "Confundir 'desconectador de servicio' con un breaker cualquiera del panel de distribucion",
+      "Instalar mas de 6 desconectadores de servicio agrupados sin verificar el limite de NEC 230.71(A)"
+    ],
+    commonMistakesEn: [
+      "Assuming 100A is always sufficient without performing the Article 220 load calculation",
+      "Confusing a service disconnect with any breaker in the distribution panel",
+      "Installing more than 6 grouped service disconnects without checking the NEC 230.71(A) limit"
+    ],
+    shortAnswerEn:
+      "For a one-family dwelling, the typical minimum service or main disconnect rating is 100 amps, 3-wire, under NEC 230.79(C) (this is the same reference already verified in this project's knowledge base). The final service size is not defined by that fixed rule alone: it must be confirmed with a load calculation per NEC Article 220, the utility's requirements, existing site conditions, and local AHJ approval. In addition, NEC 230.71(A) allows up to 6 service disconnects grouped at one location (instead of a single main disconnect), each permanently marked to indicate its use.",
+    explanationEn:
+      "In modern homes, major remodels, EV chargers, electric HVAC, or significant new loads, 200A may be recommended or required depending on the case; this is determined by the load calculation, not by a generic rule. A service disconnect is the means to cut all incoming power to the building; it can be a single main breaker or, as 230.71(A) permits, up to 6 grouped breakers or fuses that together perform that function. Each disconnect must be marked to identify the load it controls.",
+    missingQuestionsEs: ["Calculo de carga actualizado disponible", "Cargas nuevas planificadas (EV charger, HVAC electrico, remodelacion)", "Requisitos especificos de la compania electrica"],
+    missingQuestionsEn: ["Updated load calculation available", "Planned new loads (EV charger, electric HVAC, remodel)", "Specific utility requirements"],
+    recommendationEs: "No fijar el tamano final del servicio sin un calculo de carga actualizado; escalar al Master Electrician para confirmar contra Article 220, la utility y el AHJ.",
+    recommendationEn: "Do not finalize the service size without an updated load calculation; escalate to the Master Electrician to confirm against Article 220, the utility, and the AHJ.",
+    warningEs:
+      "Guia preliminar interna basada en NEC 230.79(C) y 230.71(A); no reemplaza el calculo de carga oficial ni la aprobacion del AHJ. Verificar la edicion exacta adoptada por el AHJ y la aprobacion del Master Electrician antes de fijar el tamano final del servicio.",
+    warningEn:
+      "Preliminary internal guide based on NEC 230.79(C) and 230.71(A); it does not replace the official load calculation or AHJ approval. Verify the exact edition adopted by the AHJ and Master Electrician approval before finalizing the service size."
+  },
+  {
+    id: "kb-hvac-electrical",
+    matchCategory: "installation_methods",
+    category: "HVAC: disconnect, MCA, MOCP y calibre de conductor (NEC Article 440)",
+    keywords: [
+      "breaker para aire acondicionado",
+      "unidad de aire acondicionado",
+      "aire acondicionado",
+      "disconnect de hvac",
+      "disconnect del condensador",
+      "calibre del conductor",
+      "compresor de hvac",
+      "mca",
+      "mocp",
+      "placa del equipo hvac",
+      "carga del compresor",
+      "article 440",
+      "articulo 440",
+      "hvac breaker",
+      "air conditioning breaker",
+      "hvac disconnect",
+      "hvac condenser unit",
+      "condenser unit",
+      "conductor size for compressor",
+      "compressor load",
+      "equipment nameplate"
+    ],
+    codeReference: "NEC Article 440 (Air-Conditioning and Refrigerating Equipment), NEC 440.14 (disconnect a la vista del equipo) y NEC 440.22/440.32/440.33 (MOCP y calibre segun MCA)",
+    sourceType: "regla_tecnica_general",
+    shortAnswerEs:
+      "El equipo de aire acondicionado/HVAC se dimensiona a partir de los datos de placa del fabricante, no de una regla generica: MCA (Minimum Circuit Ampacity, ampacidad minima del circuito) determina el calibre minimo del conductor, y MOCP (Maximum Overcurrent Protection, proteccion maxima contra sobrecorriente) determina el tamano maximo permitido del breaker o fusible. NEC 440.14 exige un medio de desconexion (disconnect) ubicado a la vista del equipo (o que pueda bloquearse en posicion abierta si no es practico tenerlo a la vista), accesible sin necesidad de escalera, para poder cortar la energia antes de dar servicio.",
+    explanationEs:
+      "MCA y MOCP vienen impresos en la placa del equipo (nameplate); NEC 440.22 establece la formula/metodo para calcular MOCP cuando la placa no lo indica directamente, pero el porcentaje exacto de esa formula no se asume aqui de memoria: debe verificarse contra el texto oficial de 440.22(A) y contra la placa real del equipo especifico, nunca inventarse. El calibre del conductor se selecciona para que su ampacidad sea igual o mayor al MCA marcado (440.32/440.33), aplicando los factores de correccion/ajuste que correspondan segun la instalacion real. El breaker o fusible instalado nunca debe exceder el MOCP marcado en la placa, aunque el conductor tenga capacidad para mas corriente.",
+    riskLevel: "alto",
+    checklistEs: [
+      "Leer MCA y MOCP directamente de la placa del equipo",
+      "Confirmar disconnect a la vista del equipo o bloqueable en posicion abierta (NEC 440.14)",
+      "Seleccionar conductor con ampacidad igual o mayor al MCA marcado",
+      "Confirmar que el breaker/fusible instalado no exceda el MOCP marcado",
+      "Verificar formula de 440.22(A) contra el texto oficial si la placa no indica MOCP directamente"
+    ],
+    checklistEn: [
+      "Read MCA and MOCP directly from the equipment nameplate",
+      "Confirm the disconnect is within sight of the equipment or lockable in the open position (NEC 440.14)",
+      "Select a conductor with ampacity equal to or greater than the marked MCA",
+      "Confirm the installed breaker/fuse does not exceed the marked MOCP",
+      "Verify the 440.22(A) formula against the official text if the nameplate doesn't state MOCP directly"
+    ],
+    commonMistakesEs: [
+      "Seleccionar el breaker por el amperaje 'redondeado' del equipo en vez de leer el MOCP real de la placa",
+      "Ubicar el disconnect fuera de la vista del equipo sin que sea bloqueable en posicion abierta",
+      "Dimensionar el conductor por el amperaje del breaker en vez del MCA marcado en la placa"
+    ],
+    commonMistakesEn: [
+      "Selecting the breaker by the equipment's rounded amperage instead of reading the actual MOCP from the nameplate",
+      "Locating the disconnect out of sight of the equipment without it being lockable in the open position",
+      "Sizing the conductor by the breaker's amperage instead of the nameplate MCA"
+    ],
+    shortAnswerEn:
+      "Air-conditioning/HVAC equipment is sized from the manufacturer's nameplate data, not a generic rule: MCA (Minimum Circuit Ampacity) determines the minimum conductor size, and MOCP (Maximum Overcurrent Protection) determines the maximum allowed breaker or fuse size. NEC 440.14 requires a disconnecting means located within sight of the equipment (or lockable in the open position if within-sight isn't practical), accessible without a ladder, so power can be cut before servicing.",
+    explanationEn:
+      "MCA and MOCP are printed on the equipment nameplate; NEC 440.22 provides the formula/method to calculate MOCP when the nameplate doesn't state it directly, but the exact percentage in that formula is not assumed here from memory: it must be verified against the official text of 440.22(A) and against the specific equipment's actual nameplate, never invented. The conductor size is selected so its ampacity equals or exceeds the marked MCA (440.32/440.33), applying whatever correction/adjustment factors apply to the actual installation. The installed breaker or fuse must never exceed the nameplate MOCP, even if the conductor could carry more current.",
+    missingQuestionsEs: ["Placa del equipo (MCA, MOCP, voltaje, fases)", "Ubicacion exacta del equipo respecto al disconnect", "Temperatura ambiente y numero de conductores en la misma tuberia"],
+    missingQuestionsEn: ["Equipment nameplate (MCA, MOCP, voltage, phases)", "Exact equipment location relative to the disconnect", "Ambient temperature and number of conductors in the same raceway"],
+    recommendationEs: "No fijar calibre de conductor ni tamano de breaker sin la placa real del equipo; escalar al Master Electrician si la placa no esta disponible o es ilegible.",
+    recommendationEn: "Do not finalize conductor size or breaker size without the equipment's actual nameplate; escalate to the Master Electrician if the nameplate is unavailable or illegible.",
+    warningEs:
+      "Guia preliminar interna basada en NEC Article 440; MCA y MOCP dependen siempre de la placa del equipo especifico, nunca de un porcentaje generico asumido. Verificar el texto oficial de 440.22(A), la edicion adoptada por el AHJ y la aprobacion del Master Electrician antes de instalar.",
+    warningEn:
+      "Preliminary internal guide based on NEC Article 440; MCA and MOCP always depend on the specific equipment's nameplate, never on an assumed generic percentage. Verify the official text of 440.22(A), the edition adopted by the AHJ, and Master Electrician approval before installing."
   }
 ];
 

@@ -41,12 +41,14 @@ const LABELS = {
   es: {
     shortAnswer: "1. Respuesta corta",
     englishSummary: "English summary",
+    explanation: "Explicacion",
     codeReference: "2. NEC aplicable / regulacion aplicable",
     officialSourceNote: "3. Fuente oficial consultada o recomendada",
     practicalApplication: "4. Aplicacion practica",
     doNotAssume: "5. Cuando no asumir",
     planReading: "Lectura del plano",
     checklist: "6. Checklist de campo",
+    commonMistakes: "Errores comunes",
     missingQuestions: "Preguntas faltantes",
     riskLevel: "7. Riesgo",
     recommendation: "Recomendacion adicional",
@@ -74,12 +76,14 @@ const LABELS = {
   en: {
     shortAnswer: "1. Short answer",
     englishSummary: "English summary",
+    explanation: "Explanation",
     codeReference: "2. Applicable NEC / applicable regulation",
     officialSourceNote: "3. Official source consulted or recommended",
     practicalApplication: "4. Practical application",
     doNotAssume: "5. When not to assume",
     planReading: "Plan reading",
     checklist: "6. Field checklist",
+    commonMistakes: "Common mistakes",
     missingQuestions: "Missing questions",
     riskLevel: "7. Risk",
     recommendation: "Additional recommendation",
@@ -206,6 +210,16 @@ export function AssistantResponseCard({ response, uiLang, actions }: Props) {
         </section>
       )}
 
+      {/* Sprint 2: campo opcional, separado de shortAnswer. Ausente en las
+          21 entradas anteriores a Sprint 2 y en respuestas de proveedores de
+          IA -> no se renderiza ninguna seccion vacia en esos casos. */}
+      {response.explanation && (
+        <section>
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.explanation}</h3>
+          <p className="text-sm text-fly-lightgray whitespace-pre-line">{response.explanation}</p>
+        </section>
+      )}
+
       <section>
         <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.codeReference}</h3>
         <p className="text-sm text-fly-lightgray whitespace-pre-line">{response.codeReference}</p>
@@ -261,6 +275,20 @@ export function AssistantResponseCard({ response, uiLang, actions }: Props) {
           ))}
         </ul>
       </section>
+
+      {/* Sprint 2: lista separada del checklist (nunca fusionada dentro de
+          el). Ausente en las 21 entradas anteriores a Sprint 2 -> no se
+          renderiza ninguna seccion vacia en esos casos. */}
+      {response.commonMistakes && response.commonMistakes.length > 0 && (
+        <section>
+          <h3 className="text-fly-gold font-bold text-sm uppercase tracking-wide mb-1">{L.commonMistakes}</h3>
+          <ul className="list-disc list-inside text-sm space-y-1 text-fly-lightgray">
+            {response.commonMistakes.map((item, idx) => (
+              <li key={idx}>{item}</li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {response.missingQuestions.length > 0 && (
         <section>

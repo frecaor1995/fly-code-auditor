@@ -194,3 +194,50 @@ describe("AssistantResponseCard: 7. Accesibilidad basica de etiquetas y estados"
     expect(within(riskSection).getByText("Critico")).toBeInTheDocument();
   });
 });
+
+describe("AssistantResponseCard: 8. explanation y commonMistakes (Sprint 2, campos separados)", () => {
+  it("con explanation y commonMistakes presentes, ambas secciones se muestran con su propio contenido, distinto de shortAnswer/checklist", () => {
+    const response = baseResponse({
+      explanation: "Texto de explicacion extendida, distinto de la respuesta corta.",
+      commonMistakes: ["Error comun uno", "Error comun dos"]
+    });
+    render(<AssistantResponseCard response={response} uiLang="es" />);
+
+    expect(screen.getByRole("heading", { name: "Explicacion" })).toBeInTheDocument();
+    expect(screen.getByText("Texto de explicacion extendida, distinto de la respuesta corta.")).toBeInTheDocument();
+
+    expect(screen.getByRole("heading", { name: "Errores comunes" })).toBeInTheDocument();
+    expect(screen.getByText("Error comun uno")).toBeInTheDocument();
+    expect(screen.getByText("Error comun dos")).toBeInTheDocument();
+
+    // El checklist original (baseResponse) sigue mostrandose intacto, sin
+    // que los errores comunes se hayan fusionado dentro de el.
+    expect(screen.getByText("Paso de verificacion 1")).toBeInTheDocument();
+    expect(screen.queryByText(/Error comun.*Paso de verificacion/)).toBeNull();
+  });
+
+  it("uiLang='en' usa las etiquetas 'Explanation' y 'Common mistakes'", () => {
+    const response = baseResponse({
+      explanation: "Extended explanation text.",
+      commonMistakes: ["Mistake one"]
+    });
+    render(<AssistantResponseCard response={response} uiLang="en" />);
+    expect(screen.getByRole("heading", { name: "Explanation" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Common mistakes" })).toBeInTheDocument();
+  });
+
+  it("sin explanation ni commonMistakes (las 21 entradas anteriores a Sprint 2), no aparece ningun encabezado vacio", () => {
+    const response = baseResponse();
+    render(<AssistantResponseCard response={response} uiLang="es" />);
+    expect(screen.queryByRole("heading", { name: "Explicacion" })).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Errores comunes" })).toBeNull();
+    expect(screen.queryByText("Explicacion")).toBeNull();
+    expect(screen.queryByText("Errores comunes")).toBeNull();
+  });
+
+  it("con commonMistakes como array vacio (nunca se define asi en la practica, pero por contrato), tampoco muestra el encabezado", () => {
+    const response = baseResponse({ commonMistakes: [] });
+    render(<AssistantResponseCard response={response} uiLang="es" />);
+    expect(screen.queryByRole("heading", { name: "Errores comunes" })).toBeNull();
+  });
+});
