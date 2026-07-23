@@ -202,7 +202,19 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "lighting",
       "light fixture",
       "punto de luz",
-      "circuito de iluminacion"
+      "circuito de iluminacion",
+      // Sprint 1: antes esta entrada tenia solo 2 keywords en ingles
+      // ("lighting", "light fixture") contra 7 en espanol, lo que media una
+      // asimetria real de idioma (mismas preguntas en ingles puntuaban 1,
+      // en espanol 3-4). Se agregan equivalentes en ingles para las mismas
+      // senales que ya existen en espanol (carga, circuito, control, y
+      // ubicacion de switch/entrada).
+      "lighting load",
+      "lighting circuit",
+      "wall switch",
+      "room entrance",
+      "general lighting",
+      "load per square foot"
     ],
     codeReference: "NEC Article 210 (branch circuits) y Article 410 (luminaires); referencia general",
     sourceType: "regla_tecnica_general",
@@ -315,7 +327,26 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     id: "kb-gfci",
     matchCategory: "receptacles",
     category: "GFCI",
-    keywords: ["gfci", "ground fault", "falla a tierra", "gfci protection", "proteccion gfci", "receptaculo gfci", "gfci receptacle"],
+    keywords: [
+      "gfci",
+      "ground fault",
+      "falla a tierra",
+      "gfci protection",
+      "proteccion gfci",
+      "receptaculo gfci",
+      "gfci receptacle",
+      // Sprint 1 - fortalecimiento de recuperacion bilingue: sinonimos y
+      // ubicaciones naturales que antes solo dejaban "gfci" (1pt) como unico
+      // termino coincidente, sin llegar a MINIMUM_SCORE=2.
+      "garaje",
+      "garage",
+      "enchufe",
+      "toma de corriente",
+      "outlet",
+      "test button",
+      "boton de prueba",
+      "boton de test"
+    ],
     codeReference: "NEC Article 210.8 (GFCI protection for personnel)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
@@ -346,7 +377,24 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     id: "kb-afci",
     matchCategory: "panels",
     category: "AFCI",
-    keywords: ["afci", "arc fault", "falla de arco", "interruptor de falla de arco", "combination afci"],
+    keywords: [
+      "afci",
+      "arc fault",
+      "falla de arco",
+      "interruptor de falla de arco",
+      "combination afci",
+      // Sprint 1: ubicaciones tipicas de vivienda (dormitorio/bedroom, area
+      // habitable) y las formas "combinado/estandar" que la pregunta natural
+      // usa al comparar tipos de breaker, antes ausentes de las keywords.
+      "dormitorio",
+      "bedroom",
+      "habitable room",
+      "cuarto habitable",
+      "combinado",
+      "estandar",
+      "standard",
+      "combined afci"
+    ],
     codeReference: "NEC Article 210.12 (Arc-Fault Circuit-Interrupter Protection)",
     sourceType: "regla_tecnica_general",
     shortAnswerEs:
@@ -493,7 +541,16 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       "feeder conductor",
       "alimentar un tablero",
       "alimentar el tablero",
-      "acometida o alimentador"
+      "acometida o alimentador",
+      // Sprint 1: la entrada ya explica en su respuesta que el neutro debe
+      // quedar aislado en el subpanel (NEC 250.24(A)(5)/408.40-41), pero
+      // ninguna keyword cubria la forma natural en que se pregunta esto
+      // ("se conectan juntos" / "hay que separarlos").
+      "neutro y tierra juntos",
+      "separar neutro y tierra",
+      "neutral and ground bonded",
+      "neutral-ground separation",
+      "subpanel bonding"
     ],
     codeReference:
       "NEC Article 215 (Feeders), 310.12 (tabla reducida para vivienda - solo si el alimentador abastece la carga COMPLETA de la vivienda), Table 310.16 (ampacidad estandar), 110.14(A)/(B) (terminales y compuesto antioxidante condicional), NEC Chapter 9 Tables 1/4/5 (conduit fill), Article 352.10(F) (PVC Schedule 80 en ubicaciones expuestas a daño fisico), Informational Note de caida de voltaje en 210.19(A)/215.2(A), 250.24(A)(5)/408.40-408.41 (neutro y bonding), 300.5/300.9 (ubicaciones humedas)",
@@ -717,7 +774,20 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
     id: "kb-tdlr-texas",
     matchCategory: "tdlr",
     category: "TDLR Texas",
-    keywords: ["tdlr", "licencia texas", "texas department of licensing", "master electrician license", "licencia de electricista", "supervision"],
+    keywords: [
+      "tdlr",
+      "licencia texas",
+      "texas department of licensing",
+      "master electrician license",
+      "licencia de electricista",
+      "supervision",
+      // Sprint 1: "supervision" (sustantivo) ya estaba, pero normalizeForMatch
+      // no hace stemming, asi que la forma verbal "supervisar" (pregunta real:
+      // "que licencia se requiere para supervisar trabajo electrico") no
+      // coincidia. "supervise" es el verbo en ingles, tampoco presente antes.
+      "supervisar",
+      "supervise"
+    ],
     codeReference: "Reglas de licenciamiento TDLR (Texas Department of Licensing and Regulation)",
     sourceType: "guia_interna_general",
     shortAnswerEs:
@@ -860,7 +930,17 @@ export const ELECTRICAL_KNOWLEDGE_BASE: KnowledgeBaseEntry[] = [
       // espanol de Texas/Houston; sin esto, cualquier pregunta que use
       // "tomacorriente" en vez de "receptaculo" pierde esta senal.
       "tomacorriente",
-      "tomacorrientes"
+      "tomacorrientes",
+      // Sprint 1: "patio" es la forma mas comun en que un electricista real
+      // describe una ubicacion exterior residencial (mas que "exterior" o
+      // "intemperie"), y no coincidia con ninguna keyword existente. "porch"
+      // y "terraza" cubren las mismas ubicaciones cubiertas/semi-cubiertas
+      // en ingles y espanol. "exterior outlet" (nota: "outdoor receptacle" /
+      // "outdoor receptacles" ya estaban en la lista, no se duplican).
+      "patio",
+      "porch",
+      "terraza",
+      "exterior outlet"
     ],
     // Terminos contradictorios propios de esta entrada, ademas del gate
     // simetrico de healthcare que ya aplica CATEGORY_GATES en matchEngine.ts.

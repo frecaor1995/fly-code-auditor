@@ -51,8 +51,30 @@ const CATEGORY_QUOTE: CategoryDef = {
   kbId: "kb-9"
 };
 
+// Sprint 1 (fortalecimiento de conocimiento): "panel schedule" y "one-line"
+// como keywords sueltas causaban un falso positivo real (hallado en la
+// auditoria): una pregunta puramente tecnica que solo menciona el CONCEPTO
+// "panel schedule" (ej. "what panel schedule information do I need before a
+// service upgrade?") caia aqui y devolvia "sube tu plano" en vez de pasar a
+// unverified honesto o a una entrada tecnica real. Se reemplazan por frases
+// que exigen una peticion explicita de revisar un plano/adjunto ya
+// existente, no solo la mencion del termino. La categoria sigue viva para
+// su caso real (pedir leer un panel schedule de un plano que se va a subir).
 const CATEGORY_PLAN_SUMMARY: CategoryDef = {
-  keywords: ["resume este plano", "resumen del plano", "plano electrico", "hoja e", "panel schedule", "one-line"],
+  keywords: [
+    "resume este plano",
+    "resumen del plano",
+    "plano electrico",
+    "hoja e",
+    "revisa el panel schedule",
+    "revisar el panel schedule",
+    "review the panel schedule",
+    "check the panel schedule",
+    "panel schedule de este plano",
+    "panel schedule del plano adjunto",
+    "one-line diagram del plano",
+    "el one-line adjunto"
+  ],
   categoria: "Lectura de planos (sin archivo adjunto)",
   referencia: "Procedimiento interno de lectura de planos",
   tipo: "guia interna general",
