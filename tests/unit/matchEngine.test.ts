@@ -140,9 +140,105 @@ describe("matchEngine: normalizeForMatch", () => {
   it("mismo resultado para singular/plural cuando ambas formas se buscan explicitamente", () => {
     const entries = [entry({ id: "a", matchCategory: "panels", keywords: ["panel", "paneles"] })];
     expect(findBestMatch("necesito paneles nuevos", entries)?.id).toBe("a");
-    // Solo "panel" matchea aqui (no "paneles"): una sola keyword de 1
-    // palabra = 1pt, por debajo del minimo de 2.
+    // Solo "panel" matchea literalmente aqui; "paneles" queda deduplicada
+    // contra la misma clave canonica (Sprint 3: no debe sumar dos veces por
+    // una unica mencion de la misma palabra solo porque la entrada lista
+    // ambas formas). Sigue por debajo del minimo -comportamiento identico
+    // al anterior a Sprint 3-.
     expect(findBestMatch("necesito un panel nuevo", entries)).toBeNull();
+  });
+
+  // Sprint 3 (generalizacion semantica controlada): lib/knowledge/textNormalization.ts
+  // agrega reconocimiento de plural/singular conservador. Nota: cuando la
+  // KEYWORD es la forma singular (corta), el plural de la pregunta ya
+  // matcheaba por subcadena antigua ("panel" es substring literal de
+  // "paneles"). El caso genuinamente nuevo es el inverso: la keyword es
+  // PLURAL y la pregunta usa la forma SINGULAR, que nunca es substring
+  // literal del plural ("paneles" no es substring de "panel").
+  it("Sprint 3: reconoce la forma singular de la pregunta aunque la keyword solo liste el plural", () => {
+    const entries = [entry({ id: "a", matchCategory: "panels", keywords: ["paneles", "breakers"] })];
+    const result = findBestMatch("necesito revisar el panel y el breaker", entries);
+    expect(result?.id).toBe("a");
+  });
+});
+
+describe("matchEngine: Sprint 3 - sinonimos ES/EN a traves del motor real", () => {
+  it("reconoce un sinonimo (enchufe/outlet) sin que la keyword lo liste literalmente", () => {
+    const entries = [entry({ id: "a", matchCategory: "receptacles", keywords: ["outlet", "gfci"] })];
+    const result = findBestMatch("necesito gfci en el enchufe de la cocina", entries);
+    expect(result?.id).toBe("a");
+  });
+
+  it("reconoce el sinonimo cruzado ES/EN inverso (garage/garaje)", () => {
+    const entries = [entry({ id: "a", matchCategory: "receptacles", keywords: ["garage", "gfci"] })];
+    const result = findBestMatch("se requiere gfci en el garaje", entries);
+    expect(result?.id).toBe("a");
+  });
+
+  it("no duplica score cuando la entrada lista dos sinonimos del mismo grupo (patio/porch): una sola mencion cuenta una sola vez", () => {
+    const entries = [entry({ id: "a", matchCategory: "exterior_wet_locations", keywords: ["patio", "porch", "terraza"] })];
+    const result = findBestMatch("necesito una cubierta para el patio", entries);
+    // Sin dedup por sinonimos esto puntuaria 3 (patio+porch+terraza, todos
+    // resueltos por la misma mencion de "patio"); con dedup, 1 sola vez.
+    expect(result).toBeNull(); // 1pt < MINIMUM_SCORE=2, comportamiento correcto (sin inflar)
+  });
+});
+
+describe("matchEngine: Sprint 3 - orden flexible y palabras intermedias a traves del motor real", () => {
+  it("una frase multi-palabra matchea aunque el orden este invertido en la pregunta", () => {
+    const entries = [entry({ id: "a", matchCategory: "lighting", keywords: ["room entrance", "switch"] })];
+    const result = findBestMatch("is a switch required at every entrance of a room", entries);
+    expect(result?.id).toBe("a");
+  });
+
+  it("una frase multi-palabra matchea con palabras intermedias dentro de la tolerancia", () => {
+    // "neutro" (idx1) ... "tierra" (idx4): 2 palabras intermedias ("y","la"
+    // -"y" es stopword-, mas "conectados" no cuenta como intermedia real
+    // para el span, que se mide sobre TODOS los tokens); span=4, tolerancia
+    // para frase de 2 palabras significativas = 2+2=4 -> pasa.
+    const entries = [entry({ id: "a", matchCategory: "feeders", keywords: ["neutro y tierra", "subpanel"] })];
+    const result = findBestMatch("el neutro y la tierra van conectados en el subpanel", entries);
+    expect(result?.id).toBe("a");
+  });
+});
+
+describe("matchEngine: Sprint 3 - preguntas comparativas", () => {
+  it("una pregunta comparativa (X vs Y) matchea la entrada cuya frase completa de comparacion esta explicitamente listada", () => {
+    const entries = [
+      entry({ id: "x", matchCategory: "grounding_bonding", keywords: ["grounding"] }),
+      entry({ id: "y", matchCategory: "grounding_bonding", keywords: ["bonding", "diferencia entre grounding y bonding"] })
+    ];
+    const result = findBestMatch("¿Cuál es la diferencia entre grounding y bonding?", entries);
+    expect(result?.id).toBe("y");
+  });
+
+  it("sin una frase comparativa explicita, una pregunta 'X vs Y' generica no favorece a ninguna entrada por encima del minimo (cada termino aislado pesa 1pt)", () => {
+    const entries = [
+      entry({ id: "x", matchCategory: "grounding_bonding", keywords: ["grounding"] }),
+      entry({ id: "y", matchCategory: "grounding_bonding", keywords: ["bonding"] })
+    ];
+    const result = findBestMatch("¿Cuál es la diferencia entre grounding y bonding?", entries);
+    expect(result).toBeNull();
+  });
+});
+
+describe("matchEngine: Sprint 3 - preservacion de terminos criticos", () => {
+  it.each(["GFCI", "AFCI", "EV", "HVAC", "neutral", "ground", "service", "panel"])(
+    "%s sigue matcheando por coincidencia literal exacta, sin verse afectado por la capa flexible",
+    (term) => {
+      const entries = [entry({ id: "a", matchCategory: "panels", keywords: [term.toLowerCase(), "breaker"] })];
+      const result = findBestMatch(`necesito revisar el ${term} y el breaker`, entries);
+      expect(result?.id).toBe("a");
+    }
+  );
+
+  it("un termino critico NUNCA se sustituye por una variante de plural inventada que colisione con otra palabra", () => {
+    // "ev" (critico) tiene longitud <= 3: sin la proteccion de CRITICAL_TERMS
+    // (y del filtro de longitud), podria generarse "eves"/"evs" y colisionar
+    // con palabras no relacionadas. Se verifica que sigue exigiendo
+    // coincidencia exacta.
+    const entries = [entry({ id: "a", matchCategory: "ev_charging", keywords: ["ev", "cargador"] })];
+    expect(findBestMatch("necesito instalar un cargador electrico cualquiera", entries)).toBeNull();
   });
 });
 
